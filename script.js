@@ -398,3 +398,41 @@ function changeLanguage(lang) {
     console.log("Language changed to:", lang);
 }
 
+// --- ADD THESE TO THE BOTTOM OF script.js ---
+
+function toggleFavorite(id) {
+    let favs = JSON.parse(localStorage.getItem('renzy_favs')) || [];
+    if (favs.includes(id)) {
+        favs = favs.filter(favId => favId !== id);
+    } else {
+        favs.push(id);
+    }
+    localStorage.setItem('renzy_favs', JSON.stringify(favs));
+    favorites = favs; // Update global variable
+    
+    // Refresh the view so the heart changes color
+    if (selectedItemForRent) {
+        showProductDetail(selectedItemForRent);
+    } else {
+        renderFilteredItems(items);
+    }
+}
+
+function toggleCart(id) {
+    let myCart = JSON.parse(localStorage.getItem('renzy_cart')) || [];
+    if (myCart.includes(id)) {
+        myCart = myCart.filter(cartId => cartId !== id);
+        alert("Removed from Cart");
+    } else {
+        myCart.push(id);
+        alert("Added to Cart");
+    }
+    localStorage.setItem('renzy_cart', JSON.stringify(myCart));
+    cart = myCart; // Update global variable
+    
+    if (selectedItemForRent) {
+        showProductDetail(selectedItemForRent);
+    } else {
+        renderFilteredItems(items);
+    }
+}
