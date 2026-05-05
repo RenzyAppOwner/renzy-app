@@ -436,3 +436,12 @@ function toggleCart(id) {
         renderFilteredItems(items);
     }
 }
+function checkAdmin() {
+    const password = prompt("Enter Owner Password:");
+    if (password === "renzy123") {
+        document.getElementById('adminArea').style.display = 'block';
+        alert("Welcome, Owner!");
+    } else {
+        alert("Incorrect Password!");
+    }
+}
