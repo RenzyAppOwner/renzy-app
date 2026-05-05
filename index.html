@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renzy | Master Shop</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+    <header class="meesho-header">
+        <div class="header-top">
+            <h1 onclick="showTab('home')">Renzy</h1>
+            <div class="header-icons">
+                <span onclick="showTab('fav')" style="cursor:pointer;">❤️</span>
+                <span onclick="showTab('cart')" style="cursor:pointer;">🛒</span>
+            </div>
+        </div>
+        <div class="meesho-search-bar">
+            <span>🔍</span>
+            <input type="text" id="searchInput" data-lang="searchPlaceholder" placeholder="Search..." oninput="searchItems()">
+        </div>
+        <div style="padding: 5px 10px; background: #fff; display: flex; align-items: center; gap: 10px;">
+            <select id="sortPrice" onchange="handleSort()" class="modern-select" style="margin:0; padding:5px; font-size:12px; width: auto;">
+                <option value="none">Sort by Price</option>
+                <option value="low">Low to High</option>
+                <option value="high">High to Low</option>
+            </select>
+        </div>
+    </header>
+
+    <div id="categoryContainer" class="category-scroll-bar"></div>
+    
+    <main id="mainContent">
+        <div id="lenderDashboard" style="display:none; padding: 15px; background: #fff; border-bottom: 8px solid #f4f4f4;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: #9f2089; margin: 0; font-size: 18px;">📥 Rental Requests</h3>
+                <span id="requestCount" style="background: #9f2089; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">0</span>
+            </div>
+            
+            <div id="requestList" style="max-height: 300px; overflow-y: auto;">
+                <p style="color: #999; font-size: 13px; text-align: center; padding: 20px;">No new requests yet.</p>
+            </div>
+            
+            <h3 style="color: #9f2089; margin-top: 20px; font-size: 18px;">🏪 My Products</h3>
+        </div>
+
+        <div id="itemGrid" class="meesho-grid"></div>
+    </main>
+
+    <div id="productDetail" class="detail-page">
+        <div id="detailContent"></div>
+        
+        <div id="rentSection" style="margin: 20px; padding: 15px; background: #fff0fb; border-radius: 12px; border: 1px dashed #9f2089;">
+            <h4 style="margin-bottom: 10px; color: #9f2089;">Rental Calculator</h4>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                <label style="font-weight: bold; font-size: 14px;">Days Required:</label>
+                <input type="number" id="rentDays" value="1" min="1" oninput="calculateTotal()" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 8px;">
+            </div>
+
+            <div style="background: white; padding: 12px; border-radius: 8px; border: 1px solid #eee;">
+                <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                    <span>Rent Cost:</span>
+                    <span id="calcRent" style="font-weight: bold;">₹0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 14px; color: #666; margin-bottom: 5px;">
+                    <span>Security Deposit:</span>
+                    <span id="calcDeposit">₹0</span>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; color: #2ecc71; font-size: 16px;">
+                    <span>Total Payable:</span>
+                    <span id="calcTotal">₹0</span>
+                </div>
+            </div>
+<button class="btn-p" onclick="sendDirectRequest()" style="background: #9f2089; width: 100%; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+    <i class="fa-solid fa-bolt"></i> Send Request to Lender
+</button>
+
+            <button class="btn-p" onclick="sendRentalRequest()" style="margin-top: 15px; background: #25D366; width: 100%; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <i class="fa-brands fa-whatsapp" style="font-size: 20px;"></i> Send Rent Request
+            </button>
+        </div>
+    </div>
+
+    <nav class="meesho-nav">
+        <div onclick="showTab('home')">🏠<p data-lang="navHome">Home</p></div>
+        <div onclick="showTab('order')">🛍️<p>My Bookings</p></div> 
+        <div onclick="showTab('shop')">🏪<p data-lang="navShop">My Shop</p></div>
+        <div onclick="toggleModal('settingsModal', true)">⚙️<p data-lang="navMenu">Menu</p></div>
+    </nav>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <h3 data-lang="menuTitle">Settings</h3>
+            <button id="auth-btn" class="btn-outline" style="margin-bottom: 15px; width: 100%; border: 2px solid #9f2089; font-weight: bold;"></button>
+            <label data-lang="selectLang">Language</label>
+            <select id="langSelect" class="modern-select" onchange="changeLanguage(this.value)">
+                <option value="en">English</option>
+                <option value="hi">हिंदी</option>
+                <option value="mr">मराठी</option>
+            </select>
+            
+            <div style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px;">
+                <p style="font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #333;">Manage Categories</p>
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <input type="text" id="newCatName" placeholder="e.g. Music, Games" style="flex:1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                    <button class="btn-p" onclick="addCategory()" style="width: auto; margin: 0; padding: 0 15px; border-radius: 8px;">Add</button>
+                </div>
+            </div>
+            
+            <button class="btn-p" onclick="openAddModal()" data-lang="btnListItem">➕ List New Item</button>
+            <button class="btn-t" onclick="toggleModal('settingsModal', false)" data-lang="btnClose">Close</button>
+        </div>
+    </div>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3 data-lang="btnListItem">List Product</h3>
+            <input type="text" id="itemName" placeholder="Product Name">
+            <input type="number" id="itemPrice" placeholder="Price per Day (₹)">
+            <input type="number" id="itemSecurity" placeholder="Security Deposit (Refundable ₹)">
+            <input type="number" id="itemPhone" placeholder="WhatsApp Number">
+            <select id="itemCategory" class="modern-select"></select>
+            <input type="file" id="itemImg" accept="image/*">
+            <button class="btn-p" onclick="handlePost()" data-lang="btnPost">Post Product</button>
+            <button class="btn-t" onclick="toggleModal('addModal', false)" data-lang="btnCancel">Cancel</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
