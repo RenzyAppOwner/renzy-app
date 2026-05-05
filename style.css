@@ -126,3 +126,35 @@ body { background: #f8f9fa; padding-top: 155px; padding-bottom: 80px; overflow-x
     border-radius: 8px;
     object-fit: cover;
 }
+/* --- CATEGORY BAR FIX --- */
+.category-scroll-bar {
+    display: flex;
+    overflow-x: auto;
+    padding: 10px 5px;
+    gap: 8px;
+    background: #ffffff;
+    border-bottom: 1px solid #eeeeee;
+    white-space: nowrap;
+    height: 60px; /* This ensures the bubbles aren't cut off */
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.category-item {
+    padding: 8px 16px;
+    background: #fdf2ff;
+    border: 1px solid #9f2089;
+    border-radius: 20px;
+    color: #9f2089;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.category-item.active {
+    background: #9f2089;
+    color: white;
+}
