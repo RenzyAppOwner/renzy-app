@@ -1,0 +1,128 @@
+/* --- General Reset & Fonts --- */
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+body { background: #f8f9fa; padding-top: 155px; padding-bottom: 80px; overflow-x: hidden; }
+
+/* --- Header & Search --- */
+.meesho-header { background: #fff; padding: 10px; position: fixed; top: 0; width: 100%; z-index: 1000; border-bottom: 1px solid #eee; }
+.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.header-top h1 { color: #9f2089; cursor: pointer; font-size: 24px; font-weight: 700; }
+.meesho-search-bar { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 8px; padding: 8px; background: #f9f9f9; margin-bottom: 5px; }
+.meesho-search-bar input { border: none; background: none; outline: none; margin-left: 10px; flex: 1; }
+
+/* --- Category Bar --- */
+.category-scroll-bar { display: flex; overflow-x: auto; padding: 12px 10px; gap: 12px; background: #fff; border-bottom: 1px solid #eee; position: fixed; top: 105px; width: 100%; z-index: 999; scrollbar-width: none; }
+.category-item { background: #fff; padding: 8px 15px; border-radius: 12px; font-size: 12px; text-align: center; border: 1px solid #eee; cursor: pointer; min-width: 75px; transition: 0.3s; }
+.category-item.active { border-color: #9f2089; background: #fdf0f9; color: #9f2089; font-weight: bold; }
+.category-item i { display: block; font-size: 18px; margin-bottom: 4px; }
+
+/* --- Product Grid --- */
+.meesho-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+.meesho-card { background: #fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; position: relative; cursor: pointer; }
+.meesho-card img { width: 100%; height: 160px; object-fit: cover; }
+.meesho-info { padding: 8px; }
+.badge { position: absolute; top: 8px; left: 8px; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; color: white; z-index: 1; }
+.bg-available { background: #28a745; }
+.bg-rented { background: #dc3545; }
+
+/* --- Product Detail Page --- */
+.detail-page { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #fff; z-index: 2000; display: none; overflow-y: auto; }
+.detail-header { padding:15px; border-bottom:1px solid #eee; background:#fff; position:sticky; top:0; z-index:10; font-weight: bold; }
+.detail-img { width: 100%; height: 320px; object-fit: contain; background: #f9f9f9; }
+.detail-body { padding: 15px; }
+
+/* --- Calculator & Interactions --- */
+.calc-box { background: #fdf0f9; border: 1px dashed #9f2089; border-radius: 8px; padding: 15px; margin: 15px 0; }
+.calc-input { width: 60px; padding: 5px; border: 1px solid #9f2089; border-radius: 4px; text-align: center; margin: 0 10px; }
+.interaction-row { display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin: 15px 0; cursor: pointer; }
+.interaction-row span { display: block; font-size: 22px; }
+
+/* --- Buttons --- */
+.btn-p { width: 100%; padding: 12px; background: #9f2089; color: #fff; border: none; border-radius: 4px; font-weight: 700; margin-top: 10px; cursor: pointer; }
+.btn-outline { width: 100%; padding: 10px; background: #fff; color: #9f2089; border: 1px solid #9f2089; border-radius: 4px; margin-top: 10px; cursor: pointer; }
+.btn-danger { width: 100%; padding: 10px; background: #fff; color: #ff4444; border: 1px solid #ff4444; border-radius: 4px; margin-top: 10px; font-weight: bold; cursor: pointer; }
+.btn-t { width: 100%; background: none; border: none; color: #666; padding: 10px; cursor: pointer; }
+
+/* --- Modals --- */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 3000; }
+.modal-content { background: #fff; width: 90%; padding: 20px; border-radius: 8px; max-height: 90vh; overflow-y: auto; }
+.modern-select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; background: #fff; }
+
+/* --- Bottom Nav --- */
+.meesho-nav { position: fixed; bottom: 0; width: 100%; background: #fff; display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid #eee; z-index: 1000; }
+.meesho-nav div { text-align: center; color: #666; cursor: pointer; font-size: 20px; }
+.meesho-nav p { font-size: 10px; margin-top: 2px; }
+
+/* --- Custom Spacing for Search and Sort --- */
+.meesho-search-bar { margin: 10px 15px; }
+#sortPrice { margin-left: 15px; margin-bottom: 10px; }
+
+
+/* --- NEW: Lender Dashboard & Request Styling --- */
+#lenderDashboard {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#requestList div {
+    transition: transform 0.2s;
+}
+
+#requestList div:active {
+    transform: scale(0.98);
+}
+
+/* Clear button style */
+#requestList button {
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+#requestCount {
+    min-width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Scrollbar styling for requests */
+#requestList::-webkit-scrollbar {
+    width: 4px;
+}
+
+#requestList::-webkit-scrollbar-thumb {
+    background: #f0d5ed;
+    border-radius: 10px;
+}
+/* --- Fix for Shop Dashboard Spacing --- */
+#lenderDashboard {
+    margin-top: 55px; /* This pushes the shop content below the fixed category bar */
+    padding: 15px;
+    background: #fff;
+}
+
+#requestList .request-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fdf2ff;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #f0d5ed;
+}
+
+/* Ensure images in the request list look right */
+#requestList img {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    object-fit: cover;
+}
