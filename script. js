@@ -353,3 +353,48 @@ db.ref('categories').on('value', snap => {
     if (data) Object.values(data).forEach(c => { if(!catList.includes(c)) catList.push(c); });
     catBar.innerHTML = catList.map(c => `<div class="category-item ${currentCategory === c ? 'active' : ''}" onclick="filterCategory('${c}')"><span>${c}</span></div>`).join('');
 });
+// --- ADD THESE MISSING FUNCTIONS ---
+
+function openAddModal() {
+    // 1. Fill the category dropdown in the modal
+    const catSelect = document.getElementById('itemCategory');
+    const categories = [];
+    document.querySelectorAll('.category-item span').forEach(span => {
+        if(span.innerText !== "All") categories.push(span.innerText);
+    });
+    
+    catSelect.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    
+    // 2. Open the modal
+    toggleModal('settingsModal', false); // Close settings first
+    toggleModal('addModal', true);       // Open add modal
+}
+
+async function addCategory() {
+    const name = document.getElementById('newCatName').value;
+    if (!name) return alert("Enter category name");
+    
+    try {
+        await db.ref('categories').push(name);
+        document.getElementById('newCatName').value = "";
+        alert("Category Added!");
+    } catch(e) {
+        alert("Error adding category");
+    }
+}
+
+// Fixed Search Function (since it's called in your HTML)
+function searchItems() {
+    const term = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = items.filter(item => 
+        item.title.toLowerCase().includes(term) || 
+        item.category.toLowerCase().includes(term)
+    );
+    renderFilteredItems(filtered);
+}
+
+// Placeholder for Language Change (so it doesn't crash)
+function changeLanguage(lang) {
+    console.log("Language changed to:", lang);
+}
+
