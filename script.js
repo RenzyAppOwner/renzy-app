@@ -62,16 +62,19 @@ function compressImage(file) {
     });
 }
 
-// --- 4. POSTING & DELETING ---
+// --- 4. POSTING, EDITING & DELETING ---
 async function handlePost() {
     const title = document.getElementById('itemName').value;
     const price = document.getElementById('itemPrice').value;
     const security = document.getElementById('itemSecurity').value || 0;
     const phone = document.getElementById('itemPhone').value;
     const category = document.getElementById('itemCategory').value;
+    const lender = document.getElementById('lenderName').value; 
     const file = document.getElementById('itemImg').files[0];
 
-    if (!title || !price || !phone || !file) return alert("Please fill all fields!");
+    if (!title || !price || !phone || !file || !lender) {
+        return alert("Please fill all fields, including Lender Name!");
+    }
 
     const postBtn = document.querySelector("#addModal .btn-p");
     const originalText = postBtn.innerText;
@@ -85,8 +88,9 @@ async function handlePost() {
             title: title,
             price: price,
             security: security,
-            phone: phone, // This is the WhatsApp Number
+            phone: phone, 
             category: category,
+            lenderName: lender, 
             image: compressedBase64,
             status: 'available',
             timestamp: Date.now()
@@ -94,16 +98,57 @@ async function handlePost() {
 
         await db.ref('items').push().set(newItem);
         toggleModal('addModal', false);
-        alert("Product Posted!");
+        alert("Product Posted Successfully!");
+        
         document.getElementById('itemName').value = "";
         document.getElementById('itemPrice').value = "";
+        document.getElementById('itemSecurity').value = "";
+        document.getElementById('itemPhone').value = "";
+        document.getElementById('lenderName').value = "";
         document.getElementById('itemImg').value = "";
+        
     } catch (error) {
-        alert("Error posting product.");
+        alert("Error posting product: " + error.message);
     } finally {
         postBtn.innerText = originalText;
         postBtn.disabled = false;
     }
+}
+
+function editItem(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    document.getElementById('itemName').value = item.title;
+    document.getElementById('itemPrice').value = item.price;
+    document.getElementById('itemSecurity').value = item.security;
+    document.getElementById('itemPhone').value = item.phone;
+    document.getElementById('lenderName').value = item.lenderName || "";
+    document.getElementById('itemCategory').value = item.category;
+
+    const postBtn = document.querySelector("#addModal .btn-p");
+    
+    postBtn.innerText = "Update Product";
+    postBtn.onclick = async () => {
+        const updatedData = {
+            title: document.getElementById('itemName').value,
+            price: document.getElementById('itemPrice').value,
+            security: document.getElementById('itemSecurity').value,
+            phone: document.getElementById('itemPhone').value,
+            lenderName: document.getElementById('lenderName').value,
+            category: document.getElementById('itemCategory').value
+        };
+        
+        await db.ref(`items/${id}`).update(updatedData);
+        alert("Product Updated! ✅");
+        toggleModal('addModal', false);
+        
+        postBtn.innerText = "Post Product";
+        postBtn.onclick = () => handlePost();
+    };
+
+    toggleModal('settingsModal', false);
+    toggleModal('addModal', true);
 }
 
 // --- 5. UI RENDERING ---
@@ -113,9 +158,21 @@ function renderFilteredItems(itemArray) {
     const reqCount = document.getElementById('requestCount');
     grid.innerHTML = "";
     
-    // --- LENDER SHOP VIEW ---
     if (viewMode === 'shop') {
         const myIncoming = allRequests.filter(r => r.lenderId === myID && r.status === 'pending');
+        
+        // --- REVENUE CALCULATION ---
+        const totalRevenue = allRequests
+            .filter(r => r.lenderId === myID && r.status === 'accepted')
+            .reduce((sum, req) => {
+                const numericPrice = parseInt(req.price.replace(/[^\d]/g, '')) || 0;
+                return sum + numericPrice;
+            }, 0);
+
+        const revDisplay = document.getElementById('totalRevenue');
+        if (revDisplay) revDisplay.innerText = `₹${totalRevenue}`;
+        // ---------------------------
+
         if(reqCount) reqCount.innerText = myIncoming.length;
         
         if (myIncoming.length === 0) {
@@ -130,6 +187,11 @@ function renderFilteredItems(itemArray) {
                             <p style="font-size: 12px; color: #666;">Total: ${req.price} | ${req.days} Days</p>
                         </div>
                     </div>
+                    <div style="background: white; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; border: 1px solid #eee;">
+                        <p style="margin: 2px 0;"><strong>Renter:</strong> ${req.renterName || 'Unknown'}</p>
+                        <p style="margin: 2px 0;"><strong>Phone:</strong> ${req.renterPhone || 'N/A'}</p>
+                        <p style="margin: 2px 0;"><strong>Address:</strong> ${req.renterAddress || 'Not provided'}</p>
+                    </div>
                     <div style="display: flex; gap: 8px;">
                         <button onclick="acceptRequest('${req.id}', '${req.itemId}')" style="flex: 1; background: #28a745; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer;">✅ Accept</button>
                         <button onclick="rejectRequest('${req.id}')" style="flex: 1; background: #fff; border: 1px solid #dc3545; color: #dc3545; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer;">❌ Reject</button>
@@ -139,7 +201,6 @@ function renderFilteredItems(itemArray) {
         }
     }
 
-    // --- RENTER BOOKING HISTORY ---
     if (viewMode === 'order') {
         const mySentRequests = allRequests.filter(r => r.renterId === myID);
         if (mySentRequests.length === 0) {
@@ -147,7 +208,8 @@ function renderFilteredItems(itemArray) {
             return;
         }
 
-        grid.innerHTML = mySentRequests.map(req => {
+        grid.innerHTML = `<h3 style="grid-column: 1/-1; margin: 10px; font-size: 16px; color: #333;">My Booking History</h3>` + 
+        mySentRequests.sort((a,b) => b.timestamp - a.timestamp).map(req => {
             let statusColor = "#666"; 
             let statusText = "🕒 Requested";
             let contactBtn = "";
@@ -155,22 +217,22 @@ function renderFilteredItems(itemArray) {
             if (req.status === 'accepted') {
                 statusColor = "#28a745"; 
                 statusText = "✅ Accepted";
-                // WhatsApp button appears for renter to contact lender
-                contactBtn = `<a href="https://wa.me/91${req.lenderPhone}?text=Hi, you accepted my request for ${req.itemTitle}!" target="_blank" style="margin-top:8px; display:inline-block; text-decoration:none; color:#25D366; font-size:12px; font-weight:bold;">💬 Chat with Lender</a>`;
+                contactBtn = `<a href="https://wa.me/91${req.lenderPhone}?text=Hi, you accepted my request for ${req.itemTitle}!" target="_blank" style="margin-top:8px; display:inline-block; text-decoration:none; color:#25D366; font-size:12px; font-weight:bold;">💬 Chat</a>`;
             } else if (req.status === 'rejected') {
                 statusColor = "#dc3545"; 
                 statusText = "❌ Rejected";
             }
 
             return `
-                <div class="meesho-card" style="grid-column: 1 / -1; display: flex; flex-direction: row; height: 110px; align-items: center; border: 1px solid #eee; background: #fff; border-radius: 8px; margin-bottom: 10px; width: 100%;">
+                <div class="meesho-card" style="grid-column: 1 / -1; display: flex; flex-direction: row; height: auto; min-height: 110px; align-items: center; border: 1px solid #eee; background: #fff; border-radius: 8px; margin-bottom: 10px; width: 100%; overflow: hidden;">
                     <img src="${req.itemImage}" style="width: 100px; height: 110px; object-fit: cover;">
                     <div class="meesho-info" style="flex: 1; padding: 10px;">
                         <h4 style="font-size: 14px; margin: 0;">${req.itemTitle}</h4>
-                        <p style="font-size: 13px; color: #9f2089; font-weight: bold; margin: 4px 0;">Total: ${req.price}</p>
-                        <span style="font-size: 10px; padding: 3px 8px; border-radius: 12px; background: ${statusColor}22; color: ${statusColor}; font-weight: bold;">
+                        <p style="font-size: 13px; color: #9f2089; font-weight: bold; margin: 4px 0;">Total: ${req.price} (${req.days} Days)</p>
+                        <span style="font-size: 10px; padding: 3px 8px; border-radius: 12px; background: ${statusColor}22; color: ${statusColor}; font-weight: bold; display: inline-block;">
                             ${statusText}
                         </span>
+                        <p style="font-size: 9px; color: #bbb; margin-top: 5px;">Requested: ${new Date(req.timestamp).toLocaleDateString()}</p>
                         ${contactBtn}
                     </div>
                 </div>
@@ -179,7 +241,6 @@ function renderFilteredItems(itemArray) {
         return; 
     }
 
-    // --- HOME GRID RENDERING ---
     itemArray.forEach(item => {
         if (viewMode === 'shop' && item.ownerId !== myID) return;
         if (viewMode === 'order') return;
@@ -195,10 +256,16 @@ function renderFilteredItems(itemArray) {
             <div class="meesho-info" style="position:relative;">
                 <h4>${item.title}</h4>
                 <p>₹${item.price}</p>
+                <p style="font-size: 11px; color: #777; margin-top: 2px;">Lender: ${item.lenderName || 'Verified'}</p>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                      <span onclick="shareItem('${item.id}', '${item.title}')" style="cursor:pointer; font-size:12px; color:#666;">📤 Share</span>
                 </div>
-                ${item.ownerId === myID ? `<button onclick="deleteItem('${item.id}')" style="position:absolute; bottom:8px; right:8px; border:none; background:none; color:#ccc; font-size:14px;">🗑️</button>` : ''}
+                ${item.ownerId === myID ? `
+                    <div style="position:absolute; bottom:8px; right:8px; display:flex; gap:10px;">
+                        <button onclick="editItem('${item.id}')" style="border:none; background:none; color:#3498db; font-size:14px; cursor:pointer;">✏️</button>
+                        <button onclick="deleteItem('${item.id}')" style="border:none; background:none; color:#e74c3c; font-size:14px; cursor:pointer;">🗑️</button>
+                    </div>
+                ` : ''}
             </div>
         `;
         grid.appendChild(card);
@@ -218,14 +285,15 @@ function showProductDetail(item) {
         <div class="detail-body">
             <span class="badge ${item.status === 'available' ? 'bg-available' : 'bg-rented'}">${item.status.toUpperCase()}</span>
             <h2>${item.title}</h2>
+            <p style="color:#777; font-size:14px; margin-bottom:5px;">Lender: ${item.lenderName || 'Verified Partner'}</p>
             <p style="color:#9f2089; font-size:22px; font-weight:bold; margin:10px 0;">₹${item.price} / day</p>
             <div class="interaction-row">
                 <div onclick="toggleFavorite('${item.id}')"><span>${isFav ? '❤️' : '🤍'}</span><p>Wishlist</p></div>
                 <div onclick="toggleCart('${item.id}')"><span>${inCart ? '🛒' : '➕🛒'}</span><p>Cart</p></div>
                 <div onclick="shareItem('${item.id}', '${item.title}')"><span>📤</span><p>Share</p></div>
-                <a href="https://wa.me/91${item.phone}?text=Hi, I saw your ${item.title} on Renzy!" target="_blank" style="text-decoration:none; color:inherit; text-align:center;">
+                <div onclick="contactLender('${item.title}', '${item.phone}')" style="cursor:pointer; text-align:center;">
                     <span>💬</span><p>Chat</p>
-                </a>
+                </div>
             </div>
             ${isOwner ? `<button class="btn-outline" onclick="toggleStatus('${item.id}', '${item.status}')">Mark as ${item.status === 'available' ? 'Rented' : 'Available'}</button>` : ''}
         </div>
@@ -236,7 +304,6 @@ function showProductDetail(item) {
     calculateTotal();
 }
 
-// Native Share Function
 function shareItem(id, title) {
     if (navigator.share) {
         navigator.share({
@@ -252,6 +319,16 @@ function shareItem(id, title) {
 // --- 7. FIREBASE REQUEST LOGIC ---
 async function sendDirectRequest() {
     if (!selectedItemForRent) return;
+
+    const rName = localStorage.getItem('renzy_user_name');
+    const rPhone = localStorage.getItem('renzy_user_phone');
+    const rAddress = localStorage.getItem('renzy_user_address');
+
+    if (!rName || !rPhone) {
+        alert("Please complete your Profile (Name & Phone) in the Menu first!");
+        return;
+    }
+
     const total = document.getElementById('calcTotal').innerText;
     const days = document.getElementById('rentDays').value;
 
@@ -260,8 +337,11 @@ async function sendDirectRequest() {
         itemTitle: selectedItemForRent.title,
         itemImage: selectedItemForRent.image,
         lenderId: selectedItemForRent.ownerId,
-        lenderPhone: selectedItemForRent.phone, // Store phone for WhatsApp contact
+        lenderPhone: selectedItemForRent.phone, 
         renterId: myID, 
+        renterName: rName,
+        renterPhone: rPhone,
+        renterAddress: rAddress || "Address not set",
         price: total,
         days: days,
         status: "pending",
@@ -270,7 +350,7 @@ async function sendDirectRequest() {
 
     try {
         await db.ref('requests').push(requestData);
-        alert("✅ Request sent! Lender will be notified.");
+        alert("✅ Request sent! Lender can now see your details.");
         showTab('home'); 
     } catch (e) { alert("❌ Request failed."); }
 }
@@ -310,7 +390,6 @@ db.ref('requests').on('value', snap => {
         }
     }
     
-    // Update Notification Dot
     const navItems = document.querySelectorAll('.meesho-nav div');
     navItems.forEach(div => {
         if (div.getAttribute('onclick')?.includes('shop')) {
@@ -345,7 +424,6 @@ function deleteItem(id) {
 function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; }
 function filterCategory(cat) { currentCategory = cat; renderFilteredItems(items); }
 
-// Categories Listener
 db.ref('categories').on('value', snap => {
     const catBar = document.getElementById('categoryContainer');
     let catList = ["All"];
@@ -353,37 +431,33 @@ db.ref('categories').on('value', snap => {
     if (data) Object.values(data).forEach(c => { if(!catList.includes(c)) catList.push(c); });
     catBar.innerHTML = catList.map(c => `<div class="category-item ${currentCategory === c ? 'active' : ''}" onclick="filterCategory('${c}')"><span>${c}</span></div>`).join('');
 });
-// --- ADD THESE MISSING FUNCTIONS ---
 
 function openAddModal() {
-    // 1. Fill the category dropdown in the modal
     const catSelect = document.getElementById('itemCategory');
     const categories = [];
     document.querySelectorAll('.category-item span').forEach(span => {
         if(span.innerText !== "All") categories.push(span.innerText);
     });
-    
     catSelect.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
     
-    // 2. Open the modal
-    toggleModal('settingsModal', false); // Close settings first
-    toggleModal('addModal', true);       // Open add modal
+    const postBtn = document.querySelector("#addModal .btn-p");
+    postBtn.innerText = "Post Product";
+    postBtn.onclick = () => handlePost();
+
+    toggleModal('settingsModal', false);
+    toggleModal('addModal', true);       
 }
 
 async function addCategory() {
     const name = document.getElementById('newCatName').value;
     if (!name) return alert("Enter category name");
-    
     try {
         await db.ref('categories').push(name);
         document.getElementById('newCatName').value = "";
         alert("Category Added!");
-    } catch(e) {
-        alert("Error adding category");
-    }
+    } catch(e) { alert("Error adding category"); }
 }
 
-// Fixed Search Function (since it's called in your HTML)
 function searchItems() {
     const term = document.getElementById('searchInput').value.toLowerCase();
     const filtered = items.filter(item => 
@@ -393,12 +467,7 @@ function searchItems() {
     renderFilteredItems(filtered);
 }
 
-// Placeholder for Language Change (so it doesn't crash)
-function changeLanguage(lang) {
-    console.log("Language changed to:", lang);
-}
-
-// --- ADD THESE TO THE BOTTOM OF script.js ---
+function changeLanguage(lang) { console.log("Language changed to:", lang); }
 
 function toggleFavorite(id) {
     let favs = JSON.parse(localStorage.getItem('renzy_favs')) || [];
@@ -408,14 +477,8 @@ function toggleFavorite(id) {
         favs.push(id);
     }
     localStorage.setItem('renzy_favs', JSON.stringify(favs));
-    favorites = favs; // Update global variable
-    
-    // Refresh the view so the heart changes color
-    if (selectedItemForRent) {
-        showProductDetail(selectedItemForRent);
-    } else {
-        renderFilteredItems(items);
-    }
+    favorites = favs; 
+    if (selectedItemForRent) { showProductDetail(selectedItemForRent); } else { renderFilteredItems(items); }
 }
 
 function toggleCart(id) {
@@ -428,14 +491,10 @@ function toggleCart(id) {
         alert("Added to Cart");
     }
     localStorage.setItem('renzy_cart', JSON.stringify(myCart));
-    cart = myCart; // Update global variable
-    
-    if (selectedItemForRent) {
-        showProductDetail(selectedItemForRent);
-    } else {
-        renderFilteredItems(items);
-    }
+    cart = myCart; 
+    if (selectedItemForRent) { showProductDetail(selectedItemForRent); } else { renderFilteredItems(items); }
 }
+
 function checkAdmin() {
     const password = prompt("Enter Owner Password:");
     if (password === "renzy123") {
@@ -444,4 +503,38 @@ function checkAdmin() {
     } else {
         alert("Incorrect Password!");
     }
+}
+
+function saveProfile() {
+    const name = document.getElementById('userName').value;
+    const phone = document.getElementById('userPhone').value;
+    const address = document.getElementById('userAddress') ? document.getElementById('userAddress').value : "";
+
+    if (!name || !phone) return alert("Please fill in both Name and Phone!");
+
+    localStorage.setItem('renzy_user_name', name);
+    localStorage.setItem('renzy_user_phone', phone);
+    localStorage.setItem('renzy_user_address', address);
+    alert("Profile saved successfully! ✅");
+}
+
+function loadProfile() {
+    const savedName = localStorage.getItem('renzy_user_name');
+    const savedPhone = localStorage.getItem('renzy_user_phone');
+    const savedAddress = localStorage.getItem('renzy_user_address');
+
+    if (savedName) document.getElementById('userName').value = savedName;
+    if (savedPhone) document.getElementById('userPhone').value = savedPhone;
+    if (savedAddress && document.getElementById('userAddress')) {
+        document.getElementById('userAddress').value = savedAddress;
+    }
+}
+
+loadProfile();
+
+function contactLender(itemName, lenderPhone) {
+    const savedName = localStorage.getItem('renzy_user_name') || "A Customer";
+    const savedPhone = localStorage.getItem('renzy_user_phone') || "Not provided";
+    const message = `Hello! I am ${savedName} (Phone: ${savedPhone}). I am interested in renting your item: ${itemName}. Is it available?`;
+    window.open(`https://wa.me/91${lenderPhone}?text=${encodeURIComponent(message)}`, '_blank');
 }
