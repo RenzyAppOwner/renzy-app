@@ -158,3 +158,21 @@ body { background: #f8f9fa; padding-top: 155px; padding-bottom: 80px; overflow-x
     background: #9f2089;
     color: white;
 }
+
+/* Badge Positioning and Look */
+.badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: bold;
+    border-radius: 4px;
+    z-index: 5;
+    text-transform: uppercase;
+}
+
+/* Badge Colors */
+.bg-pending { background-color: #f39c12 !important; color: white; }
+.bg-available { background-color: #27ae60 !important; color: white; }
+.bg-rented { background-color: #e74c3c !important; color: white; }
