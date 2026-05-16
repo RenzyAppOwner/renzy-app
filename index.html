@@ -14,9 +14,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-  <body>
-    <div id="loginScreen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align: center;">
-        <img src="https://cdn-icons-png.flaticon.com/512/1170/1170576.png" style="width: 120px; margin-bottom: 20px;"> <h2 style="color: #9f2089;">Welcome to Renzy</h2>
+
+    <div id="loginScreen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:99999; display:none; flex-direction:column; align-items:center; justify-content:center; text-align: center;">
+        <img src="https://cdn-icons-png.flaticon.com/512/1170/1170576.png" style="width: 120px; margin-bottom: 20px;"> 
+        <h2 style="color: #9f2089;">Welcome to Renzy</h2>
         <p style="color: #666; margin-bottom: 30px;">Rent anything, anywhere.</p>
         
         <button onclick="handleGoogleLogin()" style="background: white; color: #444; border: 1px solid #ddd; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
@@ -24,9 +25,6 @@
             Sign in with Google
         </button>
     </div>
-
-    <header class="meesho-header">
-    ...
 
     <header class="meesho-header">
         <div class="header-top">
@@ -56,29 +54,27 @@
     <div id="categoryContainer" class="category-scroll-bar"></div>
     
     <main id="mainContent">
-      <div id="userDashboard" style="display:none; padding: 20px;">
-    <div style="text-align: center; margin-bottom: 25px;">
-        <div style="width: 100px; height: 100px; background: #fdf2ff; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; border: 2px solid #9f2089; font-size: 40px;" id="profileInitial">
-            👤
-        </div>
-        <h2 id="dashUserName" style="margin: 0; color: #333;">User Name</h2>
-        <p id="dashUserPhone" style="color: #777; font-size: 14px;">+91 0000000000</p>
-    </div>
+        <div id="userDashboard" style="display:none; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="width: 100px; height: 100px; background: #fdf2ff; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; border: 2px solid #9f2089; font-size: 40px;" id="profileInitial">👤</div>
+                <h2 id="dashUserName" style="margin: 0; color: #333;">User Name</h2>
+                <p id="dashUserPhone" style="color: #777; font-size: 14px;">+91 0000000000</p>
+            </div>
 
-    <div style="display: flex; gap: 15px; margin-bottom: 25px;">
-        <div style="flex: 1; background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #eee; text-align: center;">
-            <p style="margin: 0; font-size: 20px; font-weight: bold; color: #9f2089;" id="statBookings">0</p>
-            <p style="margin: 0; font-size: 11px; color: #777;">Rentals</p>
-        </div>
-        <div style="flex: 1; background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #eee; text-align: center;">
-            <p style="margin: 0; font-size: 20px; font-weight: bold; color: #9f2089;" id="statFavs">0</p>
-            <p style="margin: 0; font-size: 11px; color: #777;">Favorites</p>
-        </div>
-    </div>
+            <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                <div style="flex: 1; background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #eee; text-align: center;">
+                    <p style="margin: 0; font-size: 20px; font-weight: bold; color: #9f2089;" id="statBookings">0</p>
+                    <p style="margin: 0; font-size: 11px; color: #777;">Rentals</p>
+                </div>
+                <div style="flex: 1; background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #eee; text-align: center;">
+                    <p style="margin: 0; font-size: 20px; font-weight: bold; color: #9f2089;" id="statFavs">0</p>
+                    <p style="margin: 0; font-size: 11px; color: #777;">Favorites</p>
+                </div>
+            </div>
 
-    <button class="btn-p" onclick="toggleModal('settingsModal', true)" style="width: 100%; margin-bottom: 10px;">✏️ Edit Profile</button>
-    <button class="btn-t" onclick="showTab('home')" style="width: 100%;">🏠 Back to Home</button>
-</div>
+            <button class="btn-p" onclick="toggleModal('settingsModal', true)" style="width: 100%; margin-bottom: 10px;">✏️ Edit Profile</button>
+            <button class="btn-t" onclick="showTab('home')" style="width: 100%;">🏠 Back to Home</button>
+        </div>
 
         <div id="lenderDashboard" style="display:none; padding: 15px; background: #fff; border-bottom: 8px solid #f4f4f4;">
             <div style="background: linear-gradient(135deg, #9f2089, #cb2d6f); padding: 20px; border-radius: 15px; margin-bottom: 20px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(159, 32, 137, 0.2);">
@@ -179,8 +175,7 @@
             <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
                 <input type="text" id="userName" placeholder="Your Name" style="width: 100%; padding: 10px; margin-bottom: 8px;">
                 <input type="tel" id="userPhone" placeholder="WhatsApp Number" style="width: 100%; padding: 10px; margin-bottom: 8px;">
-                            <textarea id="userAddress" placeholder="Full Delivery Address" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 4px; height: 60px; font-family: inherit;"></textarea>
-
+                <textarea id="userAddress" placeholder="Full Delivery Address" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 4px; height: 60px; font-family: inherit;"></textarea>
                 <button class="btn-p" onclick="saveProfile()">Save Profile</button>
             </div>
             <button class="btn-p" onclick="openAddModal()">➕ List New Item</button>
@@ -219,22 +214,23 @@
         </div>
     </div>
 
+    <div id="reviewModal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3 style="color: #9f2089;">Rate your Experience</h3>
+            <div style="font-size: 30px; margin: 15px 0; color: #f1c40f;" id="starRating">
+                <span onclick="setStars(1)" style="cursor:pointer;">⭐</span>
+                <span onclick="setStars(2)" style="cursor:pointer;">⭐</span>
+                <span onclick="setStars(3)" style="cursor:pointer;">⭐</span>
+                <span onclick="setStars(4)" style="cursor:pointer;">⭐</span>
+                <span onclick="setStars(5)" style="cursor:pointer;">⭐</span>
+            </div>
+            <input type="hidden" id="selectedStarValue" value="5">
+            <textarea id="reviewComment" placeholder="Write a quick review..." style="width:100%; height:80px; padding:10px; border-radius:8px; border:1px solid #ddd行业;"></textarea>
+            <button class="btn-p" onclick="submitReview()">Submit Review</button>
+            <button class="btn-t" onclick="toggleModal('reviewModal', false)">Cancel</button>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
-<div id="reviewModal" class="modal">
-    <div class="modal-content" style="text-align: center;">
-        <h3 style="color: #9f2089;">Rate your Experience</h3>
-        <div style="font-size: 30px; margin: 15px 0; color: #f1c40f;" id="starRating">
-            <span onclick="setStars(1)" style="cursor:pointer;">⭐</span>
-            <span onclick="setStars(2)" style="cursor:pointer;">⭐</span>
-            <span onclick="setStars(3)" style="cursor:pointer;">⭐</span>
-            <span onclick="setStars(4)" style="cursor:pointer;">⭐</span>
-            <span onclick="setStars(5)" style="cursor:pointer;">⭐</span>
-        </div>
-        <input type="hidden" id="selectedStarValue" value="5">
-        <textarea id="reviewComment" placeholder="Write a quick review..." style="width:100%; height:80px; padding:10px; border-radius:8px; border:1px solid #ddd;"></textarea>
-        <button class="btn-p" onclick="submitReview()">Submit Review</button>
-        <button class="btn-t" onclick="toggleModal('reviewModal', false)">Cancel</button>
-    </div>
-    </div>
