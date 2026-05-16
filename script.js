@@ -47,7 +47,8 @@ function handleGoogleLogin() {
 }
 
 auth.getRedirectResult().then((result) => {
-    if (result.user) {
+    // Check if result exists and contains a valid authenticated user object
+    if (result && result.user) {
         const user = result.user;
         myID = user.uid;
         localStorage.setItem('renzy_user_id', myID);
@@ -57,7 +58,11 @@ auth.getRedirectResult().then((result) => {
         if (uiOverlay) uiOverlay.style.display = 'none';
         
         alert("Welcome to Renzy, " + user.displayName + "! 🎉");
+        
+        // FIX: Force app view state initialization and pull fresh data
         updateDashboardData();
+        viewMode = 'home';
+        renderFilteredItems(items);
     }
 }).catch((error) => {
     if (error.code !== 'auth/no-auth-event') {
@@ -71,7 +76,10 @@ auth.onAuthStateChanged((user) => {
         localStorage.setItem('renzy_user_id', myID);
         const uiOverlay = document.getElementById('loginScreen');
         if (uiOverlay) uiOverlay.style.display = 'none';
+        
         updateDashboardData();
+        // FIX: Ensure UI grid stays populated on persistent state re-verification
+        renderFilteredItems(items);
     }
 });
 
