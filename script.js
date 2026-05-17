@@ -1,4 +1,6 @@
-// --- 1. CONFIGURATION & INITIALIZATION ---
+// ==========================================================================
+// 1. CONFIGURATION & INITIALIZATION (Firebase v8 Compat)
+// ==========================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyA_rxPQGKCb6bLQtjrpkF9Ik0GQHexF3FI",
     authDomain: "renzy-30945.firebaseapp.com",
@@ -9,13 +11,13 @@ const firebaseConfig = {
     appId: "1:732458984631:web:aaef7309d60ab4f3b59932"
 };
 
-if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+if (!firebase.apps.length) { 
+    firebase.initializeApp(firebaseConfig); 
+}
 const db = firebase.database();
 
-// --- SAFE DEVICE IDENTITY ---
-let myID = localStorage.getItem('renzy_user_id') || 'user_' + Math.random().toString(36).substr(2, 9);
-localStorage.setItem('renzy_user_id', myID);
-
+// Core Application State Layers
+let myID = null; 
 let items = [];
 let allRequests = []; 
 let favorites = JSON.parse(localStorage.getItem('renzy_favs')) || [];
@@ -25,36 +27,95 @@ let selectedItemForRent = null;
 let activePaymentId = null; 
 let viewMode = 'home'; 
 
+// ==========================================================================
+// 2. AUTHENTICATION LIFECYCLE MANAGEMENT
+// ==========================================================================
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        myID = user.uid; 
+        console.log("Logged in securely as user UID:", myID);
 
-// --- 2. NAVIGATION ---
+        if (!localStorage.getItem('renzy_user_name')) {
+            localStorage.setItem('renzy_user_name', user.displayName || "");
+        }
+        if (!localStorage.getItem('renzy_user_phone') && user.phoneNumber) {
+            localStorage.setItem('renzy_user_phone', user.phoneNumber);
+        }
+
+        initializeDatabaseListeners();
+        loadProfile();
+        updateDashboardData();
+    } else {
+        myID = null;
+        console.log("No valid user profile authenticated.");
+        showTab('home');
+    }
+});
+
+function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider)
+        .then((result) => {
+            const user = result.user;
+            alert("Welcome " + user.displayName + "! 👋");
+            
+            localStorage.setItem('renzy_user_name', user.displayName || "");
+            if (user.phoneNumber) {
+                localStorage.setItem('renzy_user_phone', user.phoneNumber);
+            }
+            
+            toggleModal('loginModal', false);
+            showTab('home');
+        })
+        .catch((error) => {
+            console.error("Authentication Transaction Failed:", error);
+            alert("Google Sign-In Failed: " + error.message);
+        });
+}
+
+function logoutUser() {
+    if (confirm("Are you sure you want to sign out?")) {
+        firebase.auth().signOut().then(() => {
+            localStorage.removeItem('renzy_user_name');
+            localStorage.removeItem('renzy_user_phone');
+            localStorage.removeItem('renzy_user_address');
+            alert("Signed out successfully! 👋");
+            location.reload(); 
+        }).catch((error) => {
+            alert("Error signing out: " + error.message);
+        });
+    }
+}
+
+// ==========================================================================
+// 3. NAVIGATION ROUTER & APP VIEW PORT MODES
+// ==========================================================================
 function showTab(tab) {
     viewMode = tab;
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
     
-    // Hide everything first
-    if(document.getElementById('productDetail')) document.getElementById('productDetail').style.display = 'none';
+    if (document.getElementById('productDetail')) {
+        document.getElementById('productDetail').style.display = 'none';
+    }
     
-    // Logic to show/hide the main content vs the new profile dashboard
     const mainContent = document.getElementById('mainContent');
     const userDash = document.getElementById('userDashboard');
+    const dashboard = document.getElementById('lenderDashboard');
     
     if (mainContent) mainContent.style.display = (tab === 'profile') ? 'none' : 'block';
     if (userDash) userDash.style.display = (tab === 'profile') ? 'block' : 'none';
+    if (dashboard) dashboard.style.display = (tab === 'shop') ? 'block' : 'none';
     
     if (tab === 'profile') {
         updateDashboardData();
-    }
-
-    const dashboard = document.getElementById('lenderDashboard');
-    if (dashboard) {
-        dashboard.style.display = (tab === 'shop') ? 'block' : 'none';
     }
     
     renderFilteredItems(items);
 }
 
-
-// --- 3. IMAGE COMPRESSION ---
+// ==========================================================================
+// 4. INVENTORY MEDIA MANAGEMENT (IMAGE STREAMS OPTIMIZATION)
+// ==========================================================================
 function compressImage(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -76,8 +137,12 @@ function compressImage(file) {
     });
 }
 
-// --- 4. POSTING, EDITING & DELETING ---
+// ==========================================================================
+// 5. INVENTORY MANIPULATION CRUDS (POSTING, UPDATES, REVIEWS)
+// ==========================================================================
 async function handlePost() {
+    if (!myID) return alert("Please sign in to list items for rent!");
+
     const title = document.getElementById('itemName').value;
     const price = document.getElementById('itemPrice').value;
     const security = document.getElementById('itemSecurity').value || 0;
@@ -106,7 +171,7 @@ async function handlePost() {
             category: category,
             lenderName: lender, 
             image: compressedBase64,
-            status: 'pending', // Starts as pending for Admin approval
+            status: 'pending', 
             timestamp: Date.now()
         };
 
@@ -141,8 +206,8 @@ function editItem(id) {
     document.getElementById('itemCategory').value = item.category;
 
     const postBtn = document.querySelector("#addModal .btn-p");
-    
     postBtn.innerText = "Update Product";
+    
     postBtn.onclick = async () => {
         const updatedData = {
             title: document.getElementById('itemName').value,
@@ -165,13 +230,22 @@ function editItem(id) {
     toggleModal('addModal', true);
 }
 
-// --- 5. UI RENDERING ---
+function deleteItem(id) {
+    if (confirm("Delete this item?")) {
+        db.ref(`items/${id}`).remove();
+    }
+}
+
+// ==========================================================================
+// 6. INTERFACE RENDERING ENGINE (FILTERS, GRID CARDS & BADGES)
+// ==========================================================================
 function renderFilteredItems(itemArray) {
     const grid = document.getElementById('itemGrid');
     const reqList = document.getElementById('requestList');
     const reqCount = document.getElementById('requestCount');
-    if(grid) grid.innerHTML = "";
+    if (grid) grid.innerHTML = "";
     
+    // Vendor Layer Logic Execution Context
     if (viewMode === 'shop') {
         const myRequests = allRequests.filter(r => r.lenderId === myID);
         const myPending = myRequests.filter(r => r.status === 'pending');
@@ -188,7 +262,7 @@ function renderFilteredItems(itemArray) {
         if (reqCount) reqCount.innerText = myPending.length;
         
         if (myRequests.length === 0) {
-            if(reqList) reqList.innerHTML = `<p style="color:#999; text-align:center; padding:20px;">No requests found.</p>`;
+            if (reqList) reqList.innerHTML = `<p style="color:#999; text-align:center; padding:20px;">No requests found.</p>`;
         } else if (reqList) {
             reqList.innerHTML = myRequests.sort((a,b) => b.timestamp - a.timestamp).map(req => {
                 let actionButtons = "";
@@ -239,55 +313,64 @@ function renderFilteredItems(itemArray) {
         }
     }
 
+    // Consumer / Customer Renter Context Pipeline Layout
     if (viewMode === 'order') {
         const mySentRequests = allRequests.filter(r => r.renterId === myID);
         if (mySentRequests.length === 0) {
-            if(grid) grid.innerHTML = `<p style="color:#999; text-align:center; padding:40px; width:100%;">No bookings yet.</p>`;
+            grid.innerHTML = `<p style="color:#999; text-align:center; padding:40px; width:100%;">No bookings yet.</p>`;
             return;
         }
-        if(grid) {
-            grid.innerHTML = `<h3 style="grid-column: 1/-1; margin: 10px; font-size: 16px;">My Bookings</h3>` + 
-            mySentRequests.sort((a,b) => b.timestamp - a.timestamp).map(req => {
-                let statusColor = "#666", statusText = "🕒 Requested", actionBtn = "";
+        grid.innerHTML = `<h3 style="grid-column: 1/-1; margin: 10px; font-size: 16px;">My Bookings</h3>` + 
+        mySentRequests.sort((a,b) => b.timestamp - a.timestamp).map(req => {
+            let statusColor = "#666", statusText = "🕒 Requested", actionBtn = "";
+            let trackingBox = ""; 
 
-                if (req.status === 'accepted') {
-                    statusColor = "#f39c12"; statusText = "🟠 Payment Pending";
-                    actionBtn = `<button onclick="simulatePayment('${req.id}', '${req.price}')" style="background:#9f2089; color:white; border:none; padding:8px; border-radius:6px; width:100%; font-weight:bold; margin-top:10px;">💳 Pay Now</button>`;
-                } else if (req.status === 'paid') {
-                    statusColor = "#2ecc71"; statusText = "💰 Paid & Secure";
-                } else if (req.status === 'shipped' || req.status === 'out_for_delivery') {
-                    statusColor = "#3498db"; 
-                    statusText = "🚚 On the Way";
-                    actionBtn = `
-                        <div style="background:#f0f8ff; padding:8px; border-radius:6px; margin-top:8px; border:1px dashed #3498db;">
-                            <p style="font-size:10px; margin:0; color:#3498db;"><strong>Courier:</strong> ${req.courier || 'In Transit'}</p>
-                            <p style="font-size:10px; margin:2px 0; color:#333;"><strong>ID:</strong> ${req.trackingNumber || 'Checking...'}</p>
-                        </div>
-                        <a href="https://wa.me/91${req.lenderPhone}?text=Hi" target="_blank" style="margin-top:8px; display:inline-block; text-decoration:none; color:#25D366; font-size:12px; font-weight:bold;">💬 Chat with Lender</a>`;
-                } else if (req.status === 'delivered') {
-                    statusColor = "#27ae60"; statusText = "✅ Delivered";
-                    if (!req.reviewed) {
-                        actionBtn = `<button onclick="openReviewModal('${req.id}')" style="background:#f1c40f; color:#333; border:none; padding:8px; border-radius:6px; width:100%; margin-top:10px;">⭐ Rate Experience</button>`;
-                    } else {
-                        actionBtn = `<p style="font-size:11px; color:#2ecc71; margin-top:8px;">✅ Review Submitted!</p>`;
-                    }
-                }
-
-                return `
-                    <div class="meesho-card" style="grid-column: 1 / -1; display: flex; border: 1px solid #eee; background: #fff; border-radius: 8px; margin-bottom: 10px;">
-                        <img src="${req.itemImage}" style="width: 100px; height: 110px; object-fit: cover;">
-                        <div style="flex: 1; padding: 10px;">
-                            <h4 style="font-size: 14px; margin: 0;">${req.itemTitle}</h4>
-                            <p style="font-size: 13px; color: #9f2089; font-weight: bold; margin: 4px 0;">${req.price}</p>
-                            <span style="font-size: 10px; padding: 3px 8px; border-radius: 12px; background: ${statusColor}22; color: ${statusColor}; font-weight: bold;">${statusText}</span>
-                            ${actionBtn}
-                        </div>
+            if (req.status === 'shipped' || req.status === 'out_for_delivery' || req.status === 'delivered') {
+                const googleTrackUrl = `https://www.google.com/search?q=${encodeURIComponent(req.courier)}+tracking+${encodeURIComponent(req.trackingNumber)}`;
+                
+                trackingBox = `
+                    <div style="background:#f0f7ff; border:1px dashed #3498db; padding:10px; border-radius:10px; margin-top:8px;">
+                        <p style="margin:0; font-size:11px; color:#2980b9;"><strong>Courier:</strong> ${req.courier || 'Standard'}</p>
+                        <p style="margin:2px 0 8px 0; font-size:11px; color:#333;"><strong>ID:</strong> ${req.trackingNumber || 'Processing...'}</p>
+                        <a href="${googleTrackUrl}" target="_blank" style="display: block; text-align: center; background: #3498db; color: #fff; padding: 6px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: bold;">
+                            🔍 Track Order on Google
+                        </a>
                     </div>`;
-            }).join('');
-        }
+            }
+
+            if (req.status === 'accepted') {
+                statusColor = "#f39c12"; statusText = "🟠 Payment Pending";
+                actionBtn = `<button onclick="simulatePayment('${req.id}', '${req.price}')" style="background:#9f2089; color:white; border:none; padding:8px; border-radius:6px; width:100%; font-weight:bold; margin-top:10px;">💳 Pay Now</button>`;
+            } else if (req.status === 'paid') {
+                statusColor = "#2ecc71"; statusText = "💰 Paid & Secure";
+            } else if (req.status === 'shipped' || req.status === 'out_for_delivery') {
+                statusColor = "#3498db"; statusText = "🚚 On the Way";
+                actionBtn = `<a href="https://wa.me/91${req.lenderPhone}?text=Hi" target="_blank" style="margin-top:8px; display:inline-block; text-decoration:none; color:#25D366; font-size:12px; font-weight:bold;">💬 Chat with Lender</a>`;
+            } else if (req.status === 'delivered') {
+                statusColor = "#27ae60"; statusText = "✅ Delivered";
+                if (!req.reviewed) {
+                    actionBtn = `<button onclick="openReviewModal('${req.id}')" style="background:#f1c40f; color:#333; border:none; padding:8px; border-radius:6px; width:100%; margin-top:10px;">⭐ Rate Experience</button>`;
+                } else {
+                    actionBtn = `<p style="font-size:11px; color:#2ecc71; margin-top:8px;">✅ Review Submitted!</p>`;
+                }
+            }
+
+            return `
+                <div class="meesho-card" style="grid-column: 1 / -1; display: flex; border: 1px solid #eee; background: #fff; border-radius: 8px; margin-bottom: 10px;">
+                    <img src="${req.itemImage}" style="width: 100px; height: 110px; object-fit: cover;">
+                    <div style="flex: 1; padding: 10px;">
+                        <h4 style="font-size: 14px; margin: 0;">${req.itemTitle}</h4>
+                        <p style="font-size: 13px; color: #9f2089; font-weight: bold; margin: 4px 0;">${req.price}</p>
+                        <span style="font-size: 10px; padding: 3px 8px; border-radius: 12px; background: ${statusColor}22; color: ${statusColor}; font-weight: bold;">${statusText}</span>
+                        ${trackingBox}
+                        ${actionBtn}
+                    </div>
+                </div>`;
+        }).join('');
         return;
     }
 
+    // Main Showcase Matrix / Home Screen Loop Grid Render Engine
     itemArray.forEach(item => {
         if (viewMode === 'home' && item.status === 'pending') return;
         if (viewMode === 'shop' && item.ownerId !== myID) return;
@@ -316,17 +399,32 @@ function renderFilteredItems(itemArray) {
                 ` : ''}
             </div>
         `;
-        if(grid) grid.appendChild(card);
+        if (grid) grid.appendChild(card);
     });
 }
 
+function searchItems() {
+    const term = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = items.filter(item => 
+        item.title.toLowerCase().includes(term) || 
+        item.category.toLowerCase().includes(term)
+    );
+    renderFilteredItems(filtered);
+}
 
-// --- 6. DETAIL VIEW & ACTIONS ---
+function filterCategory(cat) { 
+    currentCategory = cat; 
+    renderFilteredItems(items); 
+}
+
+// ==========================================================================
+// 7. DETAILED PRODUCT COMPONENT & REALTIME CALCULATOR LAYER
+// ==========================================================================
 async function showProductDetail(item) {
     selectedItemForRent = item;
-
     let reviewsHTML = "";
     let avgRating = 0;
+
     try {
         const reviewsSnap = await db.ref('reviews').orderByChild('itemId').equalTo(item.id).once('value');
         const reviewsData = reviewsSnap.val();
@@ -371,7 +469,6 @@ async function showProductDetail(item) {
             </div>
 
             ${isOwner ? `<button class="btn-outline" onclick="toggleStatus('${item.id}', '${item.status}')" style="width:100%; margin-top:10px;">Mark as ${item.status === 'available' ? 'Rented' : 'Available'}</button>` : ''}
-            
             ${reviewsHTML}
         </div>
     `;
@@ -380,9 +477,20 @@ async function showProductDetail(item) {
     document.getElementById('productDetail').style.display = 'block';
     
     const rentSec = document.getElementById('rentSection');
-    if(rentSec) rentSec.style.display = item.status === 'available' ? 'block' : 'none';
+    if (rentSec) rentSec.style.display = item.status === 'available' ? 'block' : 'none';
     
     calculateTotal();
+}
+
+function calculateTotal() {
+    if (!selectedItemForRent) return;
+    const days = parseInt(document.getElementById('rentDays').value) || 1;
+    const rent = parseInt(selectedItemForRent.price) * days;
+    const security = parseInt(selectedItemForRent.security) || 0;
+    
+    if (document.getElementById('calcRent')) document.getElementById('calcRent').innerText = `₹${rent}`;
+    if (document.getElementById('calcDeposit')) document.getElementById('calcDeposit').innerText = `₹${security}`;
+    if (document.getElementById('calcTotal')) document.getElementById('calcTotal').innerText = `₹${rent + security}`;
 }
 
 function shareItem(id, title) {
@@ -397,21 +505,27 @@ function shareItem(id, title) {
     }
 }
 
-// --- 7. FIREBASE REQUEST LOGIC ---
+// ==========================================================================
+// 8. P2P TRANSACTIONS, REQUEST PROCESSING & AGGREGATIONS
+// ==========================================================================
 async function sendDirectRequest() {
+    if (!myID) return alert("Please log in with Google before renting items! 🔒");
     if (!selectedItemForRent) return;
 
     const rName = localStorage.getItem('renzy_user_name');
     const rPhone = localStorage.getItem('renzy_user_phone');
     const rAddress = localStorage.getItem('renzy_user_address');
 
-    if (!rName || !rPhone) {
-        alert("Please complete your Profile (Name & Phone) in the Menu first!");
+    if (!rName || !rPhone || !rAddress) {
+        alert("Please complete your Profile (Name, Phone & Address) in the Profile tab first!");
         return;
     }
 
-    const total = document.getElementById('calcTotal').innerText;
-    const days = document.getElementById('rentDays').value;
+    const totalElement = document.getElementById('calcTotal');
+    const total = totalElement ? totalElement.innerText : `₹${selectedItemForRent.price}`;
+    
+    const daysElement = document.getElementById('rentDays');
+    const days = daysElement ? daysElement.value : 1;
 
     const requestData = {
         itemId: selectedItemForRent.id,
@@ -422,7 +536,7 @@ async function sendDirectRequest() {
         renterId: myID, 
         renterName: rName,
         renterPhone: rPhone,
-        renterAddress: rAddress || "Address not set",
+        renterAddress: rAddress,
         price: total,
         days: days,
         status: "pending",
@@ -434,27 +548,137 @@ async function sendDirectRequest() {
         sendNotification(selectedItemForRent.ownerId, "New Rental Request! 🛍️", `Someone wants to rent your "${selectedItemForRent.title}". Check your shop!`);
         alert("✅ Request sent! Lender can now see your details.");
         showTab('home'); 
-    } catch (e) { alert("❌ Request failed."); }
+    } catch (e) { 
+        alert("❌ Request failed."); 
+    }
 }
 
 function acceptRequest(reqId) {
-    if(confirm("Accept this rental? The renter will now be asked to pay.")) {
+    if (confirm("Accept this rental? The renter will now be asked to pay.")) {
         db.ref(`requests/${reqId}`).update({ status: 'accepted' });
         alert("Rental Accepted!");
     }
 }
 
 function rejectRequest(reqId) {
-    if(confirm("Reject this request?")) {
+    if (confirm("Reject this request?")) {
         db.ref(`requests/${reqId}`).update({ status: 'rejected' });
     }
 }
 
-// --- SIMULATED PAYMENT FLOW ---
+// ==========================================================================
+// 9. TRANSACTION PROCESSING ENGINE (UPI, QR CODES & GATEWAYS)
+// ==========================================================================
 function simulatePayment(reqId, amount) {
     activePaymentId = reqId; 
     document.getElementById('payAmountText').innerText = amount;
     toggleModal('paymentModal', true);
+}
+
+function showSubPayment(type) {
+    const mainOptions = document.getElementById('mainPaymentOptions');
+    
+    if (type === 'FRIEND') {
+        if (mainOptions) mainOptions.style.display = 'none';
+        document.getElementById('qrSection').style.display = 'block';
+        generatePaymentQR(); 
+    } else if (type === 'UPI') {
+        const upiApps = [
+            { name: 'PhonePe', icon: '📱', url: 'phonepe://pay' },
+            { name: 'Google Pay', icon: '💳', url: 'tez://upi/pay' },
+            { name: 'Paytm', icon: '💰', url: 'paytmmp://cash_wallet' },
+            { name: 'Navi', icon: '🚀', url: 'navi://pay' }
+        ];
+        renderUpiOptions(upiApps);
+    } else if (type === 'CARD') {
+        showCardFields();
+    }
+}
+
+function renderUpiOptions(apps) {
+    const container = document.getElementById('mainPaymentOptions');
+    if (!container) return;
+    container.innerHTML = `<p style="font-size:12px; color:#666; margin-bottom:10px;">Select UPI App to Pay</p>`;
+    
+    apps.forEach(app => {
+        container.innerHTML += `
+            <button onclick="openRealApp('${app.url}', '${app.name}')" class="pay-option" style="margin-bottom:10px; width:100%; justify-content: space-between; display: flex; padding: 15px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
+                <span>${app.icon} ${app.name}</span>
+                <i class="fa-solid fa-chevron-right" style="color:#ccc;"></i>
+            </button>`;
+    });
+    container.innerHTML += `<button class="btn-t" onclick="resetPaymentOptions()" style="width:100%; margin-top:10px;">Back</button>`;
+}
+
+function openRealApp(appUrl, appName) {
+    const amount = document.getElementById('payAmountText').innerText.replace('₹', '');
+    const realUpiIntent = `upi://pay?pa=yourname@upi&pn=Renzy&am=${amount}&cu=INR`;
+    const loader = document.getElementById('paymentLoader');
+    
+    if (loader) loader.style.display = 'flex';
+    if (document.getElementById('loaderText')) document.getElementById('loaderText').innerText = `Connecting to ${appName}...`;
+
+    setTimeout(() => {
+        window.location.href = realUpiIntent; 
+        setTimeout(() => {
+            executeFinalPayment(`UPI (${appName})`);
+        }, 5000);
+    }, 1500);
+}
+
+function showCardFields() {
+    const container = document.getElementById('mainPaymentOptions');
+    if (!container) return;
+    container.innerHTML = `
+        <h4 style="margin-bottom:10px; font-size: 14px;">Enter Card Details</h4>
+        <input type="number" id="cardNumber" placeholder="Card Number" style="width:100%; padding:10px; margin-bottom:8px; border:1px solid #ddd; border-radius:8px;">
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input type="text" id="cardExpiry" placeholder="MM/YY" style="width:50%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+            <input type="password" id="cardCvv" placeholder="CVV" style="width:50%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+        </div>
+        <button class="btn-p" onclick="verifyCardAndPay()" style="width:100%;">Pay Now</button>
+        <button class="btn-t" onclick="resetPaymentOptions()" style="width:100%; margin-top:10px;">Back</button>
+    `;
+}
+
+function verifyCardAndPay() {
+    const cardNum = document.getElementById('cardNumber').value;
+    if (cardNum.length < 16) return alert("Please enter a valid 16-digit card number");
+    executeFinalPayment('Debit/Credit Card');
+}
+
+function generatePaymentQR() {
+    const amount = document.getElementById('payAmountText').innerText.replace('₹', '');
+    const qrContainer = document.getElementById('qrcode');
+    if (!qrContainer) return;
+    qrContainer.innerHTML = ""; 
+    
+    const upiLink = `upi://pay?pa=yourname@upi&pn=RenzyApp&am=${amount}&cu=INR`;
+    new QRCode(qrContainer, {
+        text: upiLink,
+        width: 180,
+        height: 180,
+        colorDark : "#9f2089",
+        colorLight : "#ffffff"
+    });
+}
+
+function resetPaymentOptions() {
+    const container = document.getElementById('mainPaymentOptions');
+    if (!container) return;
+    container.style.display = 'flex';
+    container.innerHTML = `
+        <button onclick="showSubPayment('UPI')" class="pay-option">
+            <span>📱 UPI (GPay, PhonePe, Navi)</span><i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <button onclick="showSubPayment('CARD')" class="pay-option">
+            <span>💳 Debit / Credit Card</span><i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <button onclick="showSubPayment('FRIEND')" class="pay-option" style="background: #e8f5e9; border-color: #2ecc71; color: #27ae60;">
+            <span>🤝 Ask a Friend to Pay</span><i class="fa-solid fa-share-nodes"></i>
+        </button>
+    `;
+    document.getElementById('qrSection').style.display = 'none';
 }
 
 async function executeFinalPayment(method) {
@@ -488,47 +712,212 @@ function closeSuccess() {
     showTab('order'); 
 }
 
-// --- 8. REAL-TIME DATA LISTENERS ---
-db.ref('items').on('value', snap => {
-    const data = snap.val();
-    items = [];
-    if (data) { for (let id in data) items.push({ id, ...data[id] }); }
-    items.sort((a, b) => b.timestamp - a.timestamp);
-    renderFilteredItems(items);
-});
+// ==========================================================================
+// 10. REAL-TIME DATA STREAM SYNC MATRIX (LISTENERS OPERATOR)
+// ==========================================================================
+function initializeDatabaseListeners() {
+    db.ref('items').on('value', snap => {
+        const data = snap.val();
+        items = [];
+        if (data) { for (let id in data) items.push({ id, ...data[id] }); }
+        items.sort((a, b) => b.timestamp - a.timestamp);
+        renderFilteredItems(items);
+    });
 
-db.ref('requests').on('value', snap => {
-    const data = snap.val();
-    allRequests = [];
-    let myIncomingCount = 0;
-    if (data) {
-        for (let id in data) {
-            const req = { id, ...data[id] };
-            allRequests.push(req);
-            if (req.lenderId === myID && req.status === 'pending') myIncomingCount++;
+    db.ref('requests').on('value', snap => {
+        const data = snap.val();
+        allRequests = [];
+        let myIncomingCount = 0;
+        if (data) {
+            for (let id in data) {
+                const req = { id, ...data[id] };
+                allRequests.push(req);
+                if (req.lenderId === myID && req.status === 'pending') myIncomingCount++;
+            }
         }
-    }
-    
-    const navItems = document.querySelectorAll('.meesho-nav div');
-    navItems.forEach(div => {
-        if (div.getAttribute('onclick')?.includes('shop')) {
-            div.innerHTML = myIncomingCount > 0 
-                ? `🏪<span style="position:absolute; background:red; color:white; font-size:10px; padding:2px 6px; border-radius:10px; margin-top:-15px; margin-left:10px; border:2px solid white;">${myIncomingCount}</span><p>My Shop</p>`
-                : `🏪<p>My Shop</p>`;
+        
+        const navItems = document.querySelectorAll('.meesho-nav div');
+        navItems.forEach(div => {
+            if (div.getAttribute('onclick')?.includes('shop')) {
+                div.innerHTML = myIncomingCount > 0 
+                    ? `🏪<span style="position:absolute; background:red; color:white; font-size:10px; padding:2px 6px; border-radius:10px; margin-top:-15px; margin-left:10px; border:2px solid white;">${myIncomingCount}</span><p>My Shop</p>`
+                    : `🏪<p>My Shop</p>`;
+            }
+        });
+        renderFilteredItems(items);
+    });
+
+    db.ref('notifications').on('value', snap => {
+        const data = snap.val();
+        const notiList = document.getElementById('notiList');
+        const notiBadge = document.getElementById('notiBadge');
+        let unreadCount = 0;
+        let myNotis = [];
+
+        if (data) {
+            for (let id in data) {
+                if (data[id].targetId === myID) {
+                    myNotis.push({ id, ...data[id] });
+                    if (!data[id].read) unreadCount++;
+                }
+            }
+        }
+
+        if (notiBadge) {
+            if (unreadCount > 0) {
+                notiBadge.innerText = unreadCount;
+                notiBadge.style.display = 'block';
+            } else {
+                notiBadge.style.display = 'none';
+            }
+        }
+
+        if (myNotis.length > 0 && notiList) {
+            notiList.innerHTML = myNotis.sort((a,b) => b.timestamp - a.timestamp).map(n => `
+                <div style="padding:12px; border-bottom:1px solid #eee; background:${n.read ? '#fff' : '#fdf2ff'}; border-left: ${n.read ? 'none' : '4px solid #9f2089'}">
+                    <p style="margin:0; font-weight:bold; font-size:13px; color:#333;">${n.title}</p>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666; line-height:1.4;">${n.message}</p>
+                    <p style="margin:4px 0 0 0; font-size:9px; color:#aaa;">${new Date(n.timestamp).toLocaleTimeString()}</p>
+                </div>
+            `).join('');
         }
     });
-    renderFilteredItems(items);
-});
 
-// --- HELPER UI FUNCTIONS ---
-function calculateTotal() {
-    if (!selectedItemForRent) return;
-    const days = parseInt(document.getElementById('rentDays').value) || 1;
-    const rent = parseInt(selectedItemForRent.price) * days;
-    const security = parseInt(selectedItemForRent.security) || 0;
-    document.getElementById('calcRent').innerText = `₹${rent}`;
-    document.getElementById('calcDeposit').innerText = `₹${security}`;
-    document.getElementById('calcTotal').innerText = `₹${rent + security}`;
+    db.ref('categories').on('value', snap => {
+        const catBar = document.getElementById('categoryContainer');
+        let catList = ["All"];
+        const data = snap.val();
+        if (data) Object.values(data).forEach(c => { if (!catList.includes(c)) catList.push(c); });
+        if (catBar) catBar.innerHTML = catList.map(c => `<div class="category-item ${currentCategory === c ? 'active' : ''}" onclick="filterCategory('${c}')"><span>${c}</span></div>`).join('');
+    });
+}
+
+// ==========================================================================
+// 11. PROFILE METADATA & METRICS LAYERS
+// ==========================================================================
+function saveProfile() {
+    const name = document.getElementById('userName').value;
+    const phone = document.getElementById('userPhone').value;
+    const address = document.getElementById('userAddress').value; 
+
+    if (!name || !phone || !address) {
+        return alert("Please fill in Name, Phone, and Address to receive deliveries!");
+    }
+
+    localStorage.setItem('renzy_user_name', name);
+    localStorage.setItem('renzy_user_phone', phone);
+    localStorage.setItem('renzy_user_address', address); 
+    
+    alert("Profile saved successfully! ✅");
+    updateDashboardData();
+}
+
+function loadProfile() {
+    const savedName = localStorage.getItem('renzy_user_name');
+    const savedPhone = localStorage.getItem('renzy_user_phone');
+    const savedAddress = localStorage.getItem('renzy_user_address');
+
+    if (savedName && document.getElementById('userName')) document.getElementById('userName').value = savedName;
+    if (savedPhone && document.getElementById('userPhone')) document.getElementById('userPhone').value = savedPhone;
+    if (savedAddress) {
+        setTimeout(() => {
+            const addrEl = document.getElementById('userAddress');
+            if (addrEl) addrEl.value = savedAddress;
+        }, 100);
+    }
+}
+
+function updateDashboardData() {
+    const name = localStorage.getItem('renzy_user_name') || "Renzy User";
+    const phone = localStorage.getItem('renzy_user_phone') || "No phone added";
+    
+    if (document.getElementById('dashUserName')) document.getElementById('dashUserName').innerText = name;
+    if (document.getElementById('dashUserPhone')) document.getElementById('dashUserPhone').innerText = phone;
+    if (document.getElementById('profileInitial')) document.getElementById('profileInitial').innerText = name.charAt(0).toUpperCase();
+
+    const myBookings = allRequests.filter(r => r.renterId === myID).length;
+    if (document.getElementById('statBookings')) document.getElementById('statBookings').innerText = myBookings;
+    if (document.getElementById('statFavs')) document.getElementById('statFavs').innerText = favorites.length;
+}
+
+// ==========================================================================
+// 12. LOGISTICS CONTROL PIPELINES (TRACKING & FULFILLMENT INFRASTRUCTURE)
+// ==========================================================================
+async function updateReqStatus(reqId, newStatus) {
+    if (!confirm(`Change status to ${newStatus.replace('_', ' ')}?`)) return;
+    try {
+        await db.ref(`requests/${reqId}`).update({ status: newStatus });
+        const req = allRequests.find(r => r.id === reqId);
+        
+        if (req) {
+            let msg = `Your order for "${req.itemTitle}" is now ${newStatus.replace('_', ' ')}!`;
+            if (newStatus === 'packed') msg = `📦 Your item "${req.itemTitle}" is packed and ready!`;
+            if (newStatus === 'shipped') msg = `🚚 Your item "${req.itemTitle}" is now with the courier!`;
+            if (newStatus === 'out_for_delivery') msg = `🛵 Your item "${req.itemTitle}" is out for delivery!`;
+            if (newStatus === 'delivered') msg = `✅ Your item "${req.itemTitle}" has been delivered!`;
+            
+            sendNotification(req.renterId, "Order Update", msg);
+        }
+        alert("Status Updated! 🚀");
+    } catch (e) {
+        alert("Update failed.");
+    }
+}
+
+async function promptDispatch(reqId) {
+    const courierName = prompt("Enter Courier Name (e.g., Delhivery, BlueDart, Local):");
+    if (!courierName) return; 
+
+    const trackId = prompt("Enter Tracking ID / Receipt Number:");
+    if (!trackId) return; 
+
+    try {
+        await db.ref(`requests/${reqId}`).update({ 
+            status: 'shipped',
+            courier: courierName,
+            trackingNumber: trackId
+        });
+        
+        const req = allRequests.find(r => r.id === reqId);
+        if (req) {
+            sendNotification(req.renterId, "Order Dispatched 🚚", `Your order "${req.itemTitle}" has been handed over to ${courierName}. Tracking ID: ${trackId}`);
+        }
+        alert("Details Saved & Dispatched! 🚀");
+    } catch (e) {
+        alert("Error saving tracking info.");
+    }
+}
+
+// ==========================================================================
+// 13. ALERTS, UTILITIES & EXTERNAL BACKDOORS
+// ==========================================================================
+async function sendNotification(targetUserId, title, message) {
+    const notiData = {
+        targetId: targetUserId,
+        title: title,
+        message: message,
+        read: false,
+        timestamp: Date.now()
+    };
+    await db.ref('notifications').push(notiData);
+}
+
+function markNotificationsRead() {
+    db.ref('notifications').once('value', snap => {
+        const data = snap.val();
+        for (let id in data) {
+            if (data[id].targetId === myID && !data[id].read) {
+                db.ref(`notifications/${id}`).update({ read: true });
+            }
+        }
+    });
+}
+
+function contactLender(itemName, lenderPhone) {
+    const savedName = localStorage.getItem('renzy_user_name') || "A Customer";
+    const savedPhone = localStorage.getItem('renzy_user_phone') || "Not provided";
+    const message = `Hello! I am ${savedName} (Phone: ${savedPhone}). I am interested in renting your item: ${itemName}. Is it available?`;
+    window.open(`https://wa.me/91${lenderPhone}?text=${encodeURIComponent(message)}`, '_blank');
 }
 
 function toggleStatus(id, currentStatus) {
@@ -536,35 +925,21 @@ function toggleStatus(id, currentStatus) {
     db.ref(`items/${id}`).update({ status: newStatus });
 }
 
-function deleteItem(id) {
-    if (confirm("Delete this item?")) db.ref(`items/${id}`).remove();
-}
-
 function toggleModal(id, show) { 
     const el = document.getElementById(id);
-    if(el) el.style.display = show ? 'flex' : 'none'; 
+    if (el) el.style.display = show ? 'flex' : 'none'; 
 }
-
-function filterCategory(cat) { currentCategory = cat; renderFilteredItems(items); }
-
-db.ref('categories').on('value', snap => {
-    const catBar = document.getElementById('categoryContainer');
-    let catList = ["All"];
-    const data = snap.val();
-    if (data) Object.values(data).forEach(c => { if(!catList.includes(c)) catList.push(c); });
-    if(catBar) catBar.innerHTML = catList.map(c => `<div class="category-item ${currentCategory === c ? 'active' : ''}" onclick="filterCategory('${c}')"><span>${c}</span></div>`).join('');
-});
 
 function openAddModal() {
     const catSelect = document.getElementById('itemCategory');
-    const categories = [];
+    const categoriesList = [];
     document.querySelectorAll('.category-item span').forEach(span => {
-        if(span.innerText !== "All") categories.push(span.innerText);
+        if (span.innerText !== "All") categoriesList.push(span.innerText);
     });
-    if(catSelect) catSelect.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (catSelect) catSelect.innerHTML = categoriesList.map(c => `<option value="${c}">${c}</option>`).join('');
     
     const postBtn = document.querySelector("#addModal .btn-p");
-    if(postBtn) {
+    if (postBtn) {
         postBtn.innerText = "Post Product";
         postBtn.onclick = () => handlePost();
     }
@@ -580,16 +955,9 @@ async function addCategory() {
         await db.ref('categories').push(name);
         document.getElementById('newCatName').value = "";
         alert("Category Added!");
-    } catch(e) { alert("Error adding category"); }
-}
-
-function searchItems() {
-    const term = document.getElementById('searchInput').value.toLowerCase();
-    const filtered = items.filter(item => 
-        item.title.toLowerCase().includes(term) || 
-        item.category.toLowerCase().includes(term)
-    );
-    renderFilteredItems(filtered);
+    } catch(e) { 
+        alert("Error adding category"); 
+    }
 }
 
 function toggleFavorite(id) {
@@ -618,161 +986,43 @@ function toggleCart(id) {
     if (selectedItemForRent) { showProductDetail(selectedItemForRent); } else { renderFilteredItems(items); }
 }
 
-function saveProfile() {
-    const name = document.getElementById('userName').value;
-    const phone = document.getElementById('userPhone').value;
-    const address = document.getElementById('userAddress').value; 
+// Review Operational Hooks
+let currentReviewReqId = null;
+function openReviewModal(reqId) {
+    currentReviewReqId = reqId;
+    toggleModal('reviewModal', true);
+}
 
-    if (!name || !phone || !address) {
-        return alert("Please fill in Name, Phone, and Address to receive deliveries!");
-    }
+function setStars(val) {
+    const starInput = document.getElementById('selectedStarValue');
+    if (starInput) starInput.value = val;
+    alert("You selected " + val + " stars!");
+}
 
-    localStorage.setItem('renzy_user_name', name);
-    localStorage.setItem('renzy_user_phone', phone);
-    localStorage.setItem('renzy_user_address', address); 
+async function submitReview() {
+    const rating = document.getElementById('selectedStarValue').value;
+    const comment = document.getElementById('reviewComment').value;
+    const req = allRequests.find(r => r.id === currentReviewReqId);
+
+    if (!req) return;
+
+    const reviewData = {
+        itemId: req.itemId,
+        rating: rating,
+        comment: comment,
+        renterName: localStorage.getItem('renzy_user_name') || "Anonymous",
+        timestamp: Date.now()
+    };
+
+    await db.ref('reviews').push(reviewData);
+    await db.ref(`requests/${currentReviewReqId}`).update({ reviewed: true });
     
-    alert("Profile saved successfully! ✅");
-    if(typeof updateDashboardData === "function") updateDashboardData();
+    alert("Thanks for your review! ❤️");
+    toggleModal('reviewModal', false);
+    renderFilteredItems(items);
 }
 
-function loadProfile() {
-    const savedName = localStorage.getItem('renzy_user_name');
-    const savedPhone = localStorage.getItem('renzy_user_phone');
-    const savedAddress = localStorage.getItem('renzy_user_address');
-
-    if (savedName && document.getElementById('userName')) document.getElementById('userName').value = savedName;
-    if (savedPhone && document.getElementById('userPhone')) document.getElementById('userPhone').value = savedPhone;
-    if (savedAddress) {
-        setTimeout(() => {
-            const addrEl = document.getElementById('userAddress');
-            if(addrEl) addrEl.value = savedAddress;
-        }, 100);
-    }
-}
-loadProfile();
-
-function contactLender(itemName, lenderPhone) {
-    const savedName = localStorage.getItem('renzy_user_name') || "A Customer";
-    const savedPhone = localStorage.getItem('renzy_user_phone') || "Not provided";
-    const message = `Hello! I am ${savedName} (Phone: ${savedPhone}). I am interested in renting your item: ${itemName}. Is it available?`;
-    window.open(`https://wa.me/91${lenderPhone}?text=${encodeURIComponent(message)}`, '_blank');
-}
-
-// --- MEESHO STYLE PAYMENT LOGIC ---
-function showSubPayment(type) {
-    const mainOptions = document.getElementById('mainPaymentOptions');
-    
-    if (type === 'FRIEND') {
-        if(mainOptions) mainOptions.style.display = 'none';
-        document.getElementById('qrSection').style.display = 'block';
-        generatePaymentQR(); 
-    } else if (type === 'UPI') {
-        const upiApps = [
-            { name: 'PhonePe', icon: '📱', url: 'phonepe://pay' },
-            { name: 'Google Pay', icon: '💳', url: 'tez://upi/pay' },
-            { name: 'Paytm', icon: '💰', url: 'paytmmp://cash_wallet' },
-            { name: 'Navi', icon: '🚀', url: 'navi://pay' }
-        ];
-        renderUpiOptions(upiApps);
-    } else if (type === 'CARD') {
-        showCardFields();
-    }
-}
-
-function renderUpiOptions(apps) {
-    const container = document.getElementById('mainPaymentOptions');
-    if(!container) return;
-    container.innerHTML = `<p style="font-size:12px; color:#666; margin-bottom:10px;">Select UPI App to Pay</p>`;
-    
-    apps.forEach(app => {
-        container.innerHTML += `
-            <button onclick="openRealApp('${app.url}', '${app.name}')" class="pay-option" style="margin-bottom:10px; width:100%; justify-content: space-between; display: flex; padding: 15px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
-                <span>${app.icon} ${app.name}</span>
-                <i class="fa-solid fa-chevron-right" style="color:#ccc;"></i>
-            </button>`;
-    });
-    container.innerHTML += `<button class="btn-t" onclick="resetPaymentOptions()" style="width:100%; margin-top:10px;">Back</button>`;
-}
-
-function showCardFields() {
-    const container = document.getElementById('mainPaymentOptions');
-    if(!container) return;
-    container.innerHTML = `
-        <h4 style="margin-bottom:10px; font-size: 14px;">Enter Card Details</h4>
-        <input type="number" id="cardNumber" placeholder="Card Number" style="width:100%; padding:10px; margin-bottom:8px; border:1px solid #ddd; border-radius:8px;">
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <input type="text" id="cardExpiry" placeholder="MM/YY" style="width:50%; padding:10px; border:1px solid #ddd; border-radius:8px;">
-            <input type="password" id="cardCvv" placeholder="CVV" style="width:50%; padding:10px; border:1px solid #ddd; border-radius:8px;">
-        </div>
-        <button class="btn-p" onclick="verifyCardAndPay()" style="width:100%;">Pay Now</button>
-        <button class="btn-t" onclick="resetPaymentOptions()" style="width:100%; margin-top:10px;">Back</button>
-    `;
-}
-
-function openRealApp(appUrl, appName) {
-    const amount = document.getElementById('payAmountText').innerText.replace('₹', '');
-    const realUpiIntent = `upi://pay?pa=yourname@upi&pn=Renzy&am=${amount}&cu=INR`;
-    const loader = document.getElementById('paymentLoader');
-    
-    if(loader) loader.style.display = 'flex';
-    if(document.getElementById('loaderText')) document.getElementById('loaderText').innerText = `Connecting to ${appName}...`;
-
-    setTimeout(() => {
-        window.location.href = realUpiIntent; 
-        setTimeout(() => {
-            executeFinalPayment(`UPI (${appName})`);
-        }, 5000);
-    }, 1500);
-}
-
-function verifyCardAndPay() {
-    const cardNum = document.getElementById('cardNumber').value;
-    if (cardNum.length < 16) return alert("Please enter a valid 16-digit card number");
-    executeFinalPayment('Debit/Credit Card');
-}
-
-function generatePaymentQR() {
-    const amount = document.getElementById('payAmountText').innerText.replace('₹', '');
-    const qrContainer = document.getElementById('qrcode');
-    if (!qrContainer) return;
-    qrContainer.innerHTML = ""; 
-    
-    const upiLink = `upi://pay?pa=yourname@upi&pn=RenzyApp&am=${amount}&cu=INR`;
-    
-    new QRCode(qrContainer, {
-        text: upiLink,
-        width: 180,
-        height: 180,
-        colorDark : "#9f2089",
-        colorLight : "#ffffff"
-    });
-}
-
-function resetPaymentOptions() {
-    const container = document.getElementById('mainPaymentOptions');
-    if(!container) return;
-    container.style.display = 'flex';
-    container.innerHTML = `
-        <button onclick="showSubPayment('UPI')" class="pay-option">
-            <span>📱 UPI (GPay, PhonePe, Navi)</span><i class="fa-solid fa-chevron-right"></i>
-        </button>
-        <button onclick="showSubPayment('CARD')" class="pay-option">
-            <span>💳 Debit / Credit Card</span><i class="fa-solid fa-chevron-right"></i>
-        </button>
-        <button onclick="showSubPayment('FRIEND')" class="pay-option" style="background: #e8f5e9; border-color: #2ecc71; color: #27ae60;">
-            <span>🤝 Ask a Friend to Pay</span><i class="fa-solid fa-share-nodes"></i>
-        </button>
-    `;
-    document.getElementById('qrSection').style.display = 'none';
-}
-
-// --- ADMIN PANEL VIEW LOGIC ---
-function toggleAdminView(show) {
-    const adminPanel = document.getElementById('adminPanel');
-    if(adminPanel) adminPanel.style.display = show ? 'block' : 'none';
-    if(show) refreshAdminDashboard();
-}
-
+// Administration Core Verification Dashboard Panels
 function checkAdmin() {
     const password = prompt("Enter Owner Password:");
     if (password === "renzy123") {
@@ -782,12 +1032,18 @@ function checkAdmin() {
     }
 }
 
+function toggleAdminView(show) {
+    const adminPanel = document.getElementById('adminPanel');
+    if (adminPanel) adminPanel.style.display = show ? 'block' : 'none';
+    if (show) refreshAdminDashboard();
+}
+
 function refreshAdminDashboard() {
     const listContainer = document.getElementById('adminApprovalList');
     const pending = items.filter(i => i.status === 'pending');
     
-    if(document.getElementById('adminTotalItems')) document.getElementById('adminTotalItems').innerText = items.length;
-    if(document.getElementById('adminPendingItems')) document.getElementById('adminPendingItems').innerText = pending.length;
+    if (document.getElementById('adminTotalItems')) document.getElementById('adminTotalItems').innerText = items.length;
+    if (document.getElementById('adminPendingItems')) document.getElementById('adminPendingItems').innerText = pending.length;
 
     if (!listContainer) return;
 
@@ -808,8 +1064,7 @@ function refreshAdminDashboard() {
                     <button onclick="deleteItem('${item.id}')" style="flex:1; background:#fff; border:1px solid #e74c3c; color:#e74c3c; padding:8px; border-radius:6px; font-weight:bold;">Reject</button>
                 </div>
             </div>
-        </div>
-    `).join('');
+        </div>`).join('');
 }
 
 async function approveItem(id) {
@@ -817,159 +1072,7 @@ async function approveItem(id) {
         await db.ref(`items/${id}`).update({ status: 'available' });
         alert("Item Approved & Live! 🚀");
         refreshAdminDashboard();
-    } catch(e) { alert("Error approving item"); }
-}
-
-// --- NOTIFICATION SYSTEM ---
-async function sendNotification(targetUserId, title, message) {
-    const notiData = {
-        targetId: targetUserId,
-        title: title,
-        message: message,
-        read: false,
-        timestamp: Date.now()
-    };
-    await db.ref('notifications').push(notiData);
-}
-
-db.ref('notifications').on('value', snap => {
-    const data = snap.val();
-    const notiList = document.getElementById('notiList');
-    const notiBadge = document.getElementById('notiBadge');
-    let unreadCount = 0;
-    let myNotis = [];
-
-    if (data) {
-        for (let id in data) {
-            if (data[id].targetId === myID) {
-                myNotis.push({ id, ...data[id] });
-                if (!data[id].read) unreadCount++;
-            }
-        }
-    }
-
-    if (notiBadge) {
-        if (unreadCount > 0) {
-            notiBadge.innerText = unreadCount;
-            notiBadge.style.display = 'block';
-        } else {
-            notiBadge.style.display = 'none';
-        }
-    }
-
-    if (myNotis.length > 0 && notiList) {
-        notiList.innerHTML = myNotis.sort((a,b) => b.timestamp - a.timestamp).map(n => `
-            <div style="padding:12px; border-bottom:1px solid #eee; background:${n.read ? '#fff' : '#fdf2ff'}; border-left: ${n.read ? 'none' : '4px solid #9f2089'}">
-                <p style="margin:0; font-weight:bold; font-size:13px; color:#333;">${n.title}</p>
-                <p style="margin:4px 0 0 0; font-size:12px; color:#666; line-height:1.4;">${n.message}</p>
-                <p style="margin:4px 0 0 0; font-size:9px; color:#aaa;">${new Date(n.timestamp).toLocaleTimeString()}</p>
-            </div>
-        `).join('');
-    }
-});
-
-function markNotificationsRead() {
-    db.ref('notifications').once('value', snap => {
-        const data = snap.val();
-        for (let id in data) {
-            if (data[id].targetId === myID && !data[id].read) {
-                db.ref(`notifications/${id}`).update({ read: true });
-            }
-        }
-    });
-}
-
-// --- REVIEWS & DASHBOARD ---
-let currentReviewReqId = null;
-
-function openReviewModal(reqId) {
-    currentReviewReqId = reqId;
-    toggleModal('reviewModal', true);
-}
-
-function setStars(val) {
-    const starInput = document.getElementById('selectedStarValue');
-    if(starInput) starInput.value = val;
-    alert("You selected " + val + " stars!");
-}
-
-async function submitReview() {
-    const rating = document.getElementById('selectedStarValue').value;
-    const comment = document.getElementById('reviewComment').value;
-    const req = allRequests.find(r => r.id === currentReviewReqId);
-
-    if(!req) return;
-
-    const reviewData = {
-        itemId: req.itemId,
-        rating: rating,
-        comment: comment,
-        renterName: localStorage.getItem('renzy_user_name') || "Anonymous",
-        timestamp: Date.now()
-    };
-
-    await db.ref('reviews').push(reviewData);
-    await db.ref(`requests/${currentReviewReqId}`).update({ reviewed: true });
-    
-    alert("Thanks for your review! ❤️");
-    toggleModal('reviewModal', false);
-    renderFilteredItems(items);
-}
-
-function updateDashboardData() {
-    const name = localStorage.getItem('renzy_user_name') || "Renzy User";
-    const phone = localStorage.getItem('renzy_user_phone') || "No phone added";
-    
-    if(document.getElementById('dashUserName')) document.getElementById('dashUserName').innerText = name;
-    if(document.getElementById('dashUserPhone')) document.getElementById('dashUserPhone').innerText = phone;
-    if(document.getElementById('profileInitial')) document.getElementById('profileInitial').innerText = name.charAt(0).toUpperCase();
-
-    const myBookings = allRequests.filter(r => r.renterId === myID).length;
-    if(document.getElementById('statBookings')) document.getElementById('statBookings').innerText = myBookings;
-    if(document.getElementById('statFavs')) document.getElementById('statFavs').innerText = favorites.length;
-}
-
-// --- CLEANED STAT UPDATE SYSTEM ---
-async function updateReqStatus(reqId, newStatus) {
-    if(!confirm(`Change status to ${newStatus.replace('_', ' ')}?`)) return;
-    try {
-        await db.ref(`requests/${reqId}`).update({ status: newStatus });
-        const req = allRequests.find(r => r.id === reqId);
-        if(req) {
-            let msg = `Your order for "${req.itemTitle}" is now ${newStatus.replace('_', ' ')}!`;
-            if(newStatus === 'packed') msg = `📦 Your item "${req.itemTitle}" is packed and ready!`;
-            if(newStatus === 'shipped') msg = `🚚 Your item "${req.itemTitle}" is now with the courier!`;
-            if(newStatus === 'out_for_delivery') msg = `🛵 Your item "${req.itemTitle}" is out for delivery!`;
-            if(newStatus === 'delivered') msg = `✅ Your item "${req.itemTitle}" has been delivered!`;
-            
-            sendNotification(req.renterId, "Order Update", msg);
-        }
-        alert("Status Updated! 🚀");
-    } catch (e) {
-        alert("Update failed.");
-    }
-}
-
-async function promptDispatch(reqId) {
-    const courierName = prompt("Enter Courier Name (e.g., Delhivery, BlueDart, Local):");
-    if (!courierName) return; 
-
-    const trackId = prompt("Enter Tracking ID / Receipt Number:");
-    if (!trackId) return; 
-
-    try {
-        await db.ref(`requests/${reqId}`).update({ 
-            status: 'shipped',
-            courier: courierName,
-            trackingNumber: trackId
-        });
-        
-        const req = allRequests.find(r => r.id === reqId);
-        if(req) {
-            sendNotification(req.renterId, "Order Dispatched 🚚", `Your order "${req.itemTitle}" has been handed over to ${courierName}. Tracking ID: ${trackId}`);
-        }
-        alert("Details Saved & Dispatched! 🚀");
-    } catch (e) {
-        alert("Error saving tracking info.");
+    } catch(e) { 
+        alert("Error approving item"); 
     }
 }
