@@ -59,6 +59,14 @@ function loginWithGoogle() {
             const user = result.user;
             alert("Welcome " + user.displayName + "! 👋");
             
+            // =============================================================
+            // AUTOMATIC ADMIN GENERATOR
+            // =============================================================
+            // This line automatically registers your UID in the database
+            // as the master admin the moment you log in!
+            firebase.database().ref(`admins/${user.uid}`).set(true);
+            // =============================================================
+
             localStorage.setItem('renzy_user_name', user.displayName || "");
             if (user.phoneNumber) {
                 localStorage.setItem('renzy_user_phone', user.phoneNumber);
@@ -71,20 +79,6 @@ function loginWithGoogle() {
             console.error("Authentication Transaction Failed:", error);
             alert("Google Sign-In Failed: " + error.message);
         });
-}
-
-function logoutUser() {
-    if (confirm("Are you sure you want to sign out?")) {
-        firebase.auth().signOut().then(() => {
-            localStorage.removeItem('renzy_user_name');
-            localStorage.removeItem('renzy_user_phone');
-            localStorage.removeItem('renzy_user_address');
-            alert("Signed out successfully! 👋");
-            location.reload(); 
-        }).catch((error) => {
-            alert("Error signing out: " + error.message);
-        });
-    }
 }
 
 // ==========================================================================
