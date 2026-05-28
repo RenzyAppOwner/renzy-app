@@ -34,6 +34,7 @@ firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         myID = user.uid; 
         console.log("Logged in securely as user UID:", myID);
+        document.getElementById('loginScreen').style.display = 'none';
 
         if (!localStorage.getItem('renzy_user_name')) {
             localStorage.setItem('renzy_user_name', user.displayName || "");
@@ -48,7 +49,7 @@ firebase.auth().onAuthStateChanged((user) => {
     } else {
         myID = null;
         console.log("No valid user profile authenticated.");
-        showTab('home');
+        document.getElementById('loginScreen').style.display = 'flex';
     }
 });
 
@@ -59,20 +60,15 @@ function loginWithGoogle() {
             const user = result.user;
             alert("Welcome " + user.displayName + "! 👋");
             
-            // =============================================================
-            // AUTOMATIC ADMIN GENERATOR
-            // =============================================================
-            // This line automatically registers your UID in the database
-            // as the master admin the moment you log in!
+            // Core Security Node: Save Admin profile permissions context
             firebase.database().ref(`admins/${user.uid}`).set(true);
-            // =============================================================
 
             localStorage.setItem('renzy_user_name', user.displayName || "");
             if (user.phoneNumber) {
                 localStorage.setItem('renzy_user_phone', user.phoneNumber);
             }
             
-            toggleModal('loginModal', false);
+            document.getElementById('loginScreen').style.display = 'none';
             showTab('home');
         })
         .catch((error) => {
@@ -397,6 +393,16 @@ function renderFilteredItems(itemArray) {
     });
 }
 
+function handleSort() {
+    const value = document.getElementById('sortPrice').value;
+    if (value === 'low') {
+        items.sort((a, b) => parseInt(a.price) - parseInt(b.price));
+    } else if (value === 'high') {
+        items.sort((a, b) => parseInt(b.price) - parseInt(a.price));
+    }
+    renderFilteredItems(items);
+}
+
 function searchItems() {
     const term = document.getElementById('searchInput').value.toLowerCase();
     const filtered = items.filter(item => 
@@ -511,7 +517,8 @@ async function sendDirectRequest() {
     const rAddress = localStorage.getItem('renzy_user_address');
 
     if (!rName || !rPhone || !rAddress) {
-        alert("Please complete your Profile (Name, Phone & Address) in the Profile tab first!");
+        alert("Please complete your Profile (Name, Phone & Address) in the Profile view first!");
+        showTab('profile');
         return;
     }
 
@@ -566,6 +573,8 @@ function rejectRequest(reqId) {
 function simulatePayment(reqId, amount) {
     activePaymentId = reqId; 
     document.getElementById('payAmountText').innerText = amount;
+    document.getElementById('activeOrderId').innerText = reqId;
+    resetPaymentOptions();
     toggleModal('paymentModal', true);
 }
 
@@ -607,8 +616,11 @@ function renderUpiOptions(apps) {
 function openRealApp(appUrl, appName) {
     const amount = document.getElementById('payAmountText').innerText.replace('₹', '');
     const realUpiIntent = `upi://pay?pa=yourname@upi&pn=Renzy&am=${amount}&cu=INR`;
+    
+    const mainOptions = document.getElementById('mainPaymentOptions');
     const loader = document.getElementById('paymentLoader');
     
+    if (mainOptions) mainOptions.style.display = 'none';
     if (loader) loader.style.display = 'flex';
     if (document.getElementById('loaderText')) document.getElementById('loaderText').innerText = `Connecting to ${appName}...`;
 
@@ -638,6 +650,12 @@ function showCardFields() {
 function verifyCardAndPay() {
     const cardNum = document.getElementById('cardNumber').value;
     if (cardNum.length < 16) return alert("Please enter a valid 16-digit card number");
+    
+    const mainOptions = document.getElementById('mainPaymentOptions');
+    const loader = document.getElementById('paymentLoader');
+    if (mainOptions) mainOptions.style.display = 'none';
+    if (loader) loader.style.display = 'flex';
+    
     executeFinalPayment('Debit/Credit Card');
 }
 
@@ -659,7 +677,11 @@ function generatePaymentQR() {
 
 function resetPaymentOptions() {
     const container = document.getElementById('mainPaymentOptions');
+    const loader = document.getElementById('paymentLoader');
+    
+    if (loader) loader.style.display = 'none';
     if (!container) return;
+    
     container.style.display = 'flex';
     container.innerHTML = `
         <button onclick="showSubPayment('UPI')" class="pay-option">
@@ -803,6 +825,7 @@ function saveProfile() {
     localStorage.setItem('renzy_user_address', address); 
     
     alert("Profile saved successfully! ✅");
+    toggleModal('settingsModal', false);
     updateDashboardData();
 }
 
