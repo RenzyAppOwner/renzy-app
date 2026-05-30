@@ -50,24 +50,21 @@ firebase.auth().onAuthStateChanged((user) => {
         myID = null;
         console.log("No valid user profile authenticated.");
         document.getElementById('loginScreen').style.display = 'flex';
-    }
-});
-
-function loginWithGoogle() {
+    }function loginWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     firebase.auth().signInWithPopup(provider)
         .then((result) => {
             const user = result.user;
             alert("Welcome " + user.displayName + "! 👋");
             
-            // Core Security Node: Save Admin profile permissions context
-            firebase.database().ref(`admins/${user.uid}`).set(true);
+            // Removed the security vulnerability/crashing write line to `admins/${user.uid}`
 
             localStorage.setItem('renzy_user_name', user.displayName || "");
             if (user.phoneNumber) {
                 localStorage.setItem('renzy_user_phone', user.phoneNumber);
             }
             
+            // Hide the login screen cleanly
             document.getElementById('loginScreen').style.display = 'none';
             showTab('home');
         })
@@ -76,6 +73,10 @@ function loginWithGoogle() {
             alert("Google Sign-In Failed: " + error.message);
         });
 }
+
+});
+
+
 
 // ==========================================================================
 // 3. NAVIGATION ROUTER & APP VIEW PORT MODES
