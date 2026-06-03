@@ -26,15 +26,42 @@ let currentCategory = "All";
 let selectedItemForRent = null;
 let activePaymentId = null; 
 let viewMode = 'home'; 
+// ==========================================================================
+// 2. AUTHENTICATION LIFECYCLE MANAGEMENT (FINAL REDIRECT WORK)
+// ==========================================================================
 
-// ==========================================================================
-// 2. AUTHENTICATION LIFECYCLE MANAGEMENT
-// ==========================================================================
+// 1. Process the login data immediately when returning from Google's page
+firebase.auth().getRedirectResult()
+    .then((result) => {
+        if (result && result.user) {
+            const user = result.user;
+            alert("Welcome " + (user.displayName || "User") + "! 👋");
+            
+            localStorage.setItem('renzy_user_name', user.displayName || "");
+            if (user.phoneNumber) {
+                localStorage.setItem('renzy_user_phone', user.phoneNumber);
+            }
+            
+            // Hide the white login screen and open the main app
+            const loginWall = document.getElementById('loginScreen');
+            if (loginWall) loginWall.style.display = 'none';
+            showTab('home');
+        }
+    })
+    .catch((error) => {
+        console.error("Redirect handler processing error:", error);
+    });
+
+// 2. Persistent auth session monitor
 firebase.auth().onAuthStateChanged((user) => {
+    const loginWall = document.getElementById('loginScreen');
+    
     if (user) {
         myID = user.uid; 
         console.log("Logged in securely as user UID:", myID);
-        document.getElementById('loginScreen').style.display = 'none';
+        
+        // Ensure login screen stays hidden if user is already signed in
+        if (loginWall) loginWall.style.display = 'none';
 
         if (!localStorage.getItem('renzy_user_name')) {
             localStorage.setItem('renzy_user_name', user.displayName || "");
@@ -49,33 +76,15 @@ firebase.auth().onAuthStateChanged((user) => {
     } else {
         myID = null;
         console.log("No valid user profile authenticated.");
-        document.getElementById('loginScreen').style.display = 'flex';
-    }function loginWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider)
-        .then((result) => {
-            const user = result.user;
-            alert("Welcome " + user.displayName + "! 👋");
-            
-            // Removed the security vulnerability/crashing write line to `admins/${user.uid}`
-
-            localStorage.setItem('renzy_user_name', user.displayName || "");
-            if (user.phoneNumber) {
-                localStorage.setItem('renzy_user_phone', user.phoneNumber);
-            }
-            
-            // Hide the login screen cleanly
-            document.getElementById('loginScreen').style.display = 'none';
-            showTab('home');
-        })
-        .catch((error) => {
-            console.error("Authentication Transaction Failed:", error);
-            alert("Google Sign-In Failed: " + error.message);
-        });
-}
-
+        if (loginWall) loginWall.style.display = 'flex';
+    }
 });
 
+// 3. Login Trigger Function attached to your button
+function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithRedirect(provider);
+}
 
 
 // ==========================================================================
