@@ -15,13 +15,13 @@
 </head>
 <body>
 
-    <div id="loginScreen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:99999; display:none; flex-direction:column; align-items:center; justify-content:center; text-align: center;">
-        <img src="https://cdn-icons-png.flaticon.com/512/1170/1170576.png" style="width: 120px; margin-bottom: 20px;" alt="Renzy Logo"> 
+    <div id="loginScreen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align: center;">
+        <img src="https://cdn-icons-png.flaticon.com/512/1170/1170576.png" style="width: 120px; margin-bottom: 20px;"> 
         <h2 style="color: #9f2089;">Welcome to Renzy</h2>
         <p style="color: #666; margin-bottom: 30px;">Rent anything, anywhere.</p>
         
-        <button onclick="loginWithGoogle()" style="background: white; color: #444; border: 1px solid #ddd; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; margin-right: 10px;" alt="Google">
+        <button onclick="handleGoogleLogin()" style="background: white; color: #444; border: 1px solid #ddd; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; margin-right: 10px;">
             Sign in with Google
         </button>
     </div>
@@ -141,18 +141,11 @@
                 <p style="margin:0; font-size: 12px; color: #666;">Total Payable</p>
                 <h2 id="payAmountText" style="margin:5px 0; color: #333;">₹0</h2>
             </div>
-            
             <div style="display: flex; flex-direction: column; gap: 10px;" id="mainPaymentOptions">
                 <button onclick="showSubPayment('UPI')" class="pay-option"><span>📱 UPI Apps</span><i class="fa-solid fa-chevron-right"></i></button>
                 <button onclick="showSubPayment('CARD')" class="pay-option"><span>💳 Debit / Credit Card</span><i class="fa-solid fa-chevron-right"></i></button>
                 <button onclick="showSubPayment('FRIEND')" class="pay-option" style="background: #e8f5e9; border-color: #2ecc71; color: #27ae60;"><span>🤝 Ask Friend to Pay</span><i class="fa-solid fa-share-nodes"></i></button>
             </div>
-            
-            <div id="paymentLoader" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
-                <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 40px; color: #9f2089; margin-bottom: 15px;"></i>
-                <p id="loaderText" style="font-size: 14px; color: #555; font-weight: 500;">Processing Transaction...</p>
-            </div>
-
             <div id="qrSection" style="display:none; margin-top: 15px;">
                 <div id="qrcode" style="display: flex; justify-content: center; margin: 15px 0;"></div>
                 <button class="btn-t" onclick="resetPaymentOptions()">Back</button>
@@ -169,6 +162,13 @@
         </div>
     </div>
 
+    <nav class="meesho-nav">
+        <div onclick="showTab('home')">🏠<p>Home</p></div>
+        <div onclick="showTab('order')">🛍️<p>My Bookings</p></div> 
+        <div onclick="showTab('shop')">🏪<p>My Shop</p></div>
+        <div onclick="toggleModal('settingsModal', true)">⚙️<p>Menu</p></div>
+    </nav>
+
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <h3 style="color: #9f2089;">App Settings</h3>
@@ -182,6 +182,14 @@
             <button class="btn-t" onclick="checkAdmin()" style="font-size: 10px; color: #ccc;">Admin Login</button>
             <button class="btn-t" onclick="toggleModal('settingsModal', false)">Close</button>
         </div>
+    </div>
+
+    <div id="adminPanel" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:20000; padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2>👑 Admin God View</h2>
+            <button onclick="toggleAdminView(false)">Exit</button>
+        </div>
+        <div id="adminApprovalList"></div>
     </div>
 
     <div id="addModal" class="modal">
@@ -222,21 +230,6 @@
             <button class="btn-t" onclick="toggleModal('reviewModal', false)">Cancel</button>
         </div>
     </div>
-
-    <div id="adminPanel" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:20000; padding:20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>👑 Admin God View</h2>
-            <button onclick="toggleAdminView(false)">Exit</button>
-        </div>
-        <div id="adminApprovalList"></div>
-    </div>
-
-    <nav class="meesho-nav">
-        <div onclick="showTab('home')">🏠<p>Home</p></div>
-        <div onclick="showTab('order')">🛍️<p>My Bookings</p></div> 
-        <div onclick="showTab('shop')">🏪<p>My Shop</p></div>
-        <div onclick="showTab('profile')">👤<p>Profile</p></div>
-    </nav>
 
     <script src="script.js"></script>
 </body>
