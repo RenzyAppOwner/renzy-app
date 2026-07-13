@@ -3,7 +3,8 @@
 // ==========================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyA_rxPQGKCb6bLQtjrpkF9Ik0GQHexF3FI",
-    authDomain: "renzy-30945.firebaseapp.com",
+      authDomain: "renzyappowner.github.io",
+
     databaseURL: "https://renzy-30945-default-rtdb.firebaseio.com",
     projectId: "renzy-30945",
     storageBucket: "renzy-30945.firebasestorage.app",
