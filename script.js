@@ -30,17 +30,13 @@ let viewMode = 'home';
 // 2. AUTHENTICATION LIFECYCLE MANAGEMENT (CORRECTED MOBILE REDIRECT FLOW)
 // ==========================================================================
 
-// Explicitly bind the login function to the window object so mobile browsers can always find it
+// Optimized Actionable Google Sign-in Handler
 window.loginWithGoogle = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Add custom parameters to force smooth account selection on mobile viewports
     provider.setCustomParameters({ prompt: 'select_account' });
-    firebase.auth().signInWithRedirect(provider);
-};
-
-// Process the redirect result safely AFTER DOM Content Loads
-window.addEventListener('DOMContentLoaded', () => {
-    firebase.auth().getRedirectResult()
+    
+    // Use popup flow so mobile and production URLs trigger instantly
+    firebase.auth().signInWithPopup(provider)
         .then((result) => {
             if (result && result.user) {
                 const user = result.user;
@@ -57,10 +53,15 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch((error) => {
-            console.error("Redirect handler processing error:", error);
-            alert("Authentication Error: " + error.message);
+            console.error("Popup window blocked or closed:", error);
+            // Fallback cleanly to redirect if a restrictive browser completely blocks popups
+            if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+                firebase.auth().signInWithRedirect(provider);
+            } else {
+                alert("Authentication Error: " + error.message);
+            }
         });
-});
+};
 
 // Persistent auth session monitor
 firebase.auth().onAuthStateChanged((user) => {
