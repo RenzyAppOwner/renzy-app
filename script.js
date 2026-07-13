@@ -27,32 +27,42 @@ let selectedItemForRent = null;
 let activePaymentId = null; 
 let viewMode = 'home'; 
 // ==========================================================================
-// 2. AUTHENTICATION LIFECYCLE MANAGEMENT (FINAL REDIRECT WORK)
+// 2. AUTHENTICATION LIFECYCLE MANAGEMENT (CORRECTED MOBILE REDIRECT FLOW)
 // ==========================================================================
 
-// 1. Process the login data immediately when returning from Google's page
-firebase.auth().getRedirectResult()
-    .then((result) => {
-        if (result && result.user) {
-            const user = result.user;
-            alert("Welcome " + (user.displayName || "User") + "! 👋");
-            
-            localStorage.setItem('renzy_user_name', user.displayName || "");
-            if (user.phoneNumber) {
-                localStorage.setItem('renzy_user_phone', user.phoneNumber);
-            }
-            
-            // Hide the white login screen and open the main app
-            const loginWall = document.getElementById('loginScreen');
-            if (loginWall) loginWall.style.display = 'none';
-            showTab('home');
-        }
-    })
-    .catch((error) => {
-        console.error("Redirect handler processing error:", error);
-    });
+// Explicitly bind the login function to the window object so mobile browsers can always find it
+window.loginWithGoogle = function() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    // Add custom parameters to force smooth account selection on mobile viewports
+    provider.setCustomParameters({ prompt: 'select_account' });
+    firebase.auth().signInWithRedirect(provider);
+};
 
-// 2. Persistent auth session monitor
+// Process the redirect result safely AFTER DOM Content Loads
+window.addEventListener('DOMContentLoaded', () => {
+    firebase.auth().getRedirectResult()
+        .then((result) => {
+            if (result && result.user) {
+                const user = result.user;
+                alert("Welcome " + (user.displayName || "User") + "! 👋");
+                
+                localStorage.setItem('renzy_user_name', user.displayName || "");
+                if (user.phoneNumber) {
+                    localStorage.setItem('renzy_user_phone', user.phoneNumber);
+                }
+                
+                const loginWall = document.getElementById('loginScreen');
+                if (loginWall) loginWall.style.display = 'none';
+                showTab('home');
+            }
+        })
+        .catch((error) => {
+            console.error("Redirect handler processing error:", error);
+            alert("Authentication Error: " + error.message);
+        });
+});
+
+// Persistent auth session monitor
 firebase.auth().onAuthStateChanged((user) => {
     const loginWall = document.getElementById('loginScreen');
     
@@ -60,7 +70,6 @@ firebase.auth().onAuthStateChanged((user) => {
         myID = user.uid; 
         console.log("Logged in securely as user UID:", myID);
         
-        // Ensure login screen stays hidden if user is already signed in
         if (loginWall) loginWall.style.display = 'none';
 
         if (!localStorage.getItem('renzy_user_name')) {
@@ -70,21 +79,24 @@ firebase.auth().onAuthStateChanged((user) => {
             localStorage.setItem('renzy_user_phone', user.phoneNumber);
         }
 
+        // Safe Initialization Chain
         initializeDatabaseListeners();
         loadProfile();
         updateDashboardData();
+        
+        // Force rendering home screen layout right after user data finishes loading
+        setTimeout(() => {
+            if(typeof items !== 'undefined') {
+                renderFilteredItems(items);
+            }
+        }, 800);
+
     } else {
         myID = null;
         console.log("No valid user profile authenticated.");
         if (loginWall) loginWall.style.display = 'flex';
     }
 });
-
-// 3. Login Trigger Function attached to your button
-function loginWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithRedirect(provider);
-}
 
 
 // ==========================================================================
