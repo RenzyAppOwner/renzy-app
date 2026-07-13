@@ -3,7 +3,7 @@
 // ==========================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyA_rxPQGKCb6bLQtjrpkF9Ik0GQHexF3FI",
-      authDomain: "renzy-app-owner.firebaseapp.com",
+    authDomain: "renzy-app-owner.firebaseapp.com",
     databaseURL: "https://renzy-30945-default-rtdb.firebaseio.com",
     projectId: "renzy-30945",
     storageBucket: "renzy-30945.firebasestorage.app",
@@ -26,6 +26,7 @@ let currentCategory = "All";
 let selectedItemForRent = null;
 let activePaymentId = null; 
 let viewMode = 'home'; 
+
 // ==========================================================================
 // 2. AUTHENTICATION LIFECYCLE MANAGEMENT (CORRECTED MOBILE REDIRECT FLOW)
 // ==========================================================================
@@ -33,7 +34,10 @@ let viewMode = 'home';
 // Reliable Mobile Redirect Sign-In Handler
 window.loginWithGoogle = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
+    provider.setCustomParameters({ 
+        prompt: 'select_account',
+        auth_type: 'rerequest'
+    });
     
     // Forces the page to safely redirect instead of opening an unstable popup window
     firebase.auth().signInWithRedirect(provider);
@@ -57,10 +61,8 @@ firebase.auth().getRedirectResult()
         }
     })
     .catch((error) => {
-        console.error("Redirect logic error:", error);
-        alert("Authentication Error: " + error.message);
+        console.warn("Auth state syncing:", error.message);
     });
-
 
 // Persistent auth session monitor
 firebase.auth().onAuthStateChanged((user) => {
@@ -97,7 +99,6 @@ firebase.auth().onAuthStateChanged((user) => {
         if (loginWall) loginWall.style.display = 'flex';
     }
 });
-
 
 // ==========================================================================
 // 3. NAVIGATION ROUTER & APP VIEW PORT MODES
@@ -257,7 +258,6 @@ function renderFilteredItems(itemArray) {
     const reqCount = document.getElementById('requestCount');
     if (grid) grid.innerHTML = "";
     
-    // Vendor Layer Logic Execution Context
     if (viewMode === 'shop') {
         const myRequests = allRequests.filter(r => r.lenderId === myID);
         const myPending = myRequests.filter(r => r.status === 'pending');
@@ -325,7 +325,6 @@ function renderFilteredItems(itemArray) {
         }
     }
 
-    // Consumer / Customer Renter Context Pipeline Layout
     if (viewMode === 'order') {
         const mySentRequests = allRequests.filter(r => r.renterId === myID);
         if (mySentRequests.length === 0) {
@@ -382,7 +381,6 @@ function renderFilteredItems(itemArray) {
         return;
     }
 
-    // Main Showcase Matrix / Home Screen Loop Grid Render Engine
     itemArray.forEach(item => {
         if (viewMode === 'home' && item.status === 'pending') return;
         if (viewMode === 'shop' && item.ownerId !== myID) return;
