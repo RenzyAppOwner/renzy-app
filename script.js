@@ -30,38 +30,37 @@ let viewMode = 'home';
 // 2. AUTHENTICATION LIFECYCLE MANAGEMENT (CORRECTED MOBILE REDIRECT FLOW)
 // ==========================================================================
 
-// Optimized Actionable Google Sign-in Handler
+// Reliable Mobile Redirect Sign-In Handler
 window.loginWithGoogle = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     
-    // Use popup flow so mobile and production URLs trigger instantly
-    firebase.auth().signInWithPopup(provider)
-        .then((result) => {
-            if (result && result.user) {
-                const user = result.user;
-                alert("Welcome " + (user.displayName || "User") + "! 👋");
-                
-                localStorage.setItem('renzy_user_name', user.displayName || "");
-                if (user.phoneNumber) {
-                    localStorage.setItem('renzy_user_phone', user.phoneNumber);
-                }
-                
-                const loginWall = document.getElementById('loginScreen');
-                if (loginWall) loginWall.style.display = 'none';
-                showTab('home');
-            }
-        })
-        .catch((error) => {
-            console.error("Popup window blocked or closed:", error);
-            // Fallback cleanly to redirect if a restrictive browser completely blocks popups
-            if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-                firebase.auth().signInWithRedirect(provider);
-            } else {
-                alert("Authentication Error: " + error.message);
-            }
-        });
+    // Forces the page to safely redirect instead of opening an unstable popup window
+    firebase.auth().signInWithRedirect(provider);
 };
+
+// Listen for the return data right after the redirect completes
+firebase.auth().getRedirectResult()
+    .then((result) => {
+        if (result && result.user) {
+            const user = result.user;
+            alert("Welcome " + (user.displayName || "User") + "! 👋");
+            
+            localStorage.setItem('renzy_user_name', user.displayName || "");
+            if (user.phoneNumber) {
+                localStorage.setItem('renzy_user_phone', user.phoneNumber);
+            }
+            
+            const loginWall = document.getElementById('loginScreen');
+            if (loginWall) loginWall.style.display = 'none';
+            showTab('home');
+        }
+    })
+    .catch((error) => {
+        console.error("Redirect logic error:", error);
+        alert("Authentication Error: " + error.message);
+    });
+
 
 // Persistent auth session monitor
 firebase.auth().onAuthStateChanged((user) => {
