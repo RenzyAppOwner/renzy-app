@@ -28,22 +28,19 @@ let activePaymentId = null;
 let viewMode = 'home';
 
 // ==========================================================================
-// 2. AUTHENTICATION LIFECYCLE MANAGEMENT (CORRECTED MOBILE REDIRECT FLOW)
+// 2. AUTHENTICATION LIFECYCLE MANAGEMENT (CORRECTED REDIRECT FLOW)
 // ==========================================================================
 
-// Reliable Mobile Redirect Sign-In Handler
+// Reliable Redirect Sign-In Handler
 window.loginWithGoogle = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({
-        prompt: 'select_account',
-        auth_type: 'rerequest'
+        prompt: 'select_account'
     });
-
-    // Forces the page to safely redirect instead of opening an unstable popup window  
     firebase.auth().signInWithRedirect(provider);
 };
 
-// Listen for the return data right after the redirect completes
+// Check if we just returned from a Google Sign-In redirect
 firebase.auth().getRedirectResult()
 .then((result) => {
     if (result && result.user) {
@@ -54,17 +51,17 @@ firebase.auth().getRedirectResult()
         if (user.phoneNumber) {  
             localStorage.setItem('renzy_user_phone', user.phoneNumber);  
         }  
-          
+        
         const loginWall = document.getElementById('loginScreen');  
         if (loginWall) loginWall.style.display = 'none';  
         showTab('home');  
     }  
 })  
 .catch((error) => {  
-    console.warn("Auth state syncing:", error.message);  
+    console.warn("Auth redirect error:", error.message);  
 });
 
-// Persistent auth session monitor
+// Persistent auth session monitor (Runs automatically on page load/refresh)
 firebase.auth().onAuthStateChanged((user) => {
     const loginWall = document.getElementById('loginScreen');
 
@@ -72,6 +69,7 @@ firebase.auth().onAuthStateChanged((user) => {
         myID = user.uid;   
         console.log("Logged in securely as user UID:", myID);  
           
+        // Hide login wall IMMEDIATELY
         if (loginWall) loginWall.style.display = 'none';  
 
         if (!localStorage.getItem('renzy_user_name')) {  
@@ -86,7 +84,6 @@ firebase.auth().onAuthStateChanged((user) => {
         loadProfile();  
         updateDashboardData();  
           
-        // Force rendering home screen layout right after user data finishes loading  
         setTimeout(() => {  
             if(typeof items !== 'undefined') {  
                 renderFilteredItems(items);  
