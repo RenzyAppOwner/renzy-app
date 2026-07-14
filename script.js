@@ -64,14 +64,24 @@ auth.getRedirectResult().then((result) => {
         alert("Authentication Problem: " + error.message);
     }
 });
-
 auth.onAuthStateChanged((user) => {
+    const uiOverlay = document.getElementById("loginScreen");
+
     if (user) {
         myID = user.uid;
-        localStorage.setItem('renzy_user_id', myID);
-        const uiOverlay = document.getElementById('loginScreen');
-        if (uiOverlay) uiOverlay.style.display = 'none';
+
+        localStorage.setItem("renzy_user_id", user.uid);
+        localStorage.setItem("renzy_user_name", user.displayName || "");
+        localStorage.setItem("renzy_user_email", user.email || "");
+
+        if (uiOverlay) uiOverlay.style.display = "none";
+
+        loadProfile();
         updateDashboardData();
+        showTab("home");
+
+    } else {
+        if (uiOverlay) uiOverlay.style.display = "flex";
     }
 });
 
