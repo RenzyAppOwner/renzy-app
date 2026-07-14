@@ -1,6 +1,8 @@
 /* --- General Reset & Fonts --- */
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+
+{ box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
 body { background: #f8f9fa; padding-top: 155px; padding-bottom: 80px; overflow-x: hidden; }
+
 
 /* --- Header & Search --- */
 .meesho-header { background: #fff; padding: 10px; position: fixed; top: 0; width: 100%; z-index: 1000; border-bottom: 1px solid #eee; }
@@ -56,127 +58,122 @@ body { background: #f8f9fa; padding-top: 155px; padding-bottom: 80px; overflow-x
 .meesho-search-bar { margin: 10px 15px; }
 #sortPrice { margin-left: 15px; margin-bottom: 10px; }
 
-
 /* --- NEW: Lender Dashboard & Request Styling --- */
 #lenderDashboard {
-    animation: fadeIn 0.3s ease-in;
+animation: fadeIn 0.3s ease-in;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+from { opacity: 0; transform: translateY(-10px); }
+to { opacity: 1; transform: translateY(0); }
 }
 
 #requestList div {
-    transition: transform 0.2s;
+transition: transform 0.2s;
 }
 
 #requestList div:active {
-    transform: scale(0.98);
+transform: scale(0.98);
 }
 
 /* Clear button style */
 #requestList button {
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+font-weight: bold;
+text-transform: uppercase;
+letter-spacing: 0.5px;
+box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 #requestCount {
-    min-width: 20px;
-    height: 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
+min-width: 20px;
+height: 20px;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+font-weight: bold;
 }
 
 /* Scrollbar styling for requests */
 #requestList::-webkit-scrollbar {
-    width: 4px;
+width: 4px;
 }
 
 #requestList::-webkit-scrollbar-thumb {
-    background: #f0d5ed;
-    border-radius: 10px;
+background: #f0d5ed;
+border-radius: 10px;
 }
-/* --- Fix for Shop Dashboard Spacing --- */
+/* --- Fix for Shop Dashboard Spacing --- /
 #lenderDashboard {
-    margin-top: 55px; /* This pushes the shop content below the fixed category bar */
-    padding: 15px;
-    background: #fff;
+margin-top: 55px; / This pushes the shop content below the fixed category bar */
+padding: 15px;
+background: #fff;
 }
 
 #requestList .request-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #fdf2ff;
-    padding: 12px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #f0d5ed;
+display: flex;
+align-items: center;
+gap: 12px;
+background: #fdf2ff;
+padding: 12px;
+border-radius: 10px;
+margin-bottom: 10px;
+border: 1px solid #f0d5ed;
 }
 
-/* Ensure images in the request list look right */
+/* Ensure images in the request list look right /
 #requestList img {
-    width: 50px;
-    height: 50px;
-    border-radius: 8px;
-    object-fit: cover;
+width: 50px;
+height: 50px;
+border-radius: 8px;
+object-fit: cover;
 }
-/* --- CATEGORY BAR FIX --- */
+/ --- CATEGORY BAR FIX --- /
 .category-scroll-bar {
-    display: flex;
-    overflow-x: auto;
-    padding: 10px 5px;
-    gap: 8px;
-    background: #ffffff;
-    border-bottom: 1px solid #eeeeee;
-    white-space: nowrap;
-    height: 60px; /* This ensures the bubbles aren't cut off */
-    align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+display: flex;
+overflow-x: auto;
+padding: 10px 5px;
+gap: 8px;
+background: #ffffff;
+border-bottom: 1px solid #eeeeee;
+white-space: nowrap;
+height: 60px; / This ensures the bubbles aren't cut off */
+align-items: center;
+position: sticky;
+top: 0;
+z-index: 10;
 }
 
 .category-item {
-    padding: 8px 16px;
-    background: #fdf2ff;
-    border: 1px solid #9f2089;
-    border-radius: 20px;
-    color: #9f2089;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    display: inline-block;
+padding: 8px 16px;
+background: #fdf2ff;
+border: 1px solid #9f2089;
+border-radius: 20px;
+color: #9f2089;
+font-size: 13px;
+font-weight: bold;
+cursor: pointer;
+display: inline-block;
 }
 
 .category-item.active {
-    background: #9f2089;
-    color: white;
+background: #9f2089;
+color: white;
 }
 
 /* Badge Positioning and Look */
 .badge {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    padding: 4px 8px;
-    font-size: 10px;
-    font-weight: bold;
-    border-radius: 4px;
-    z-index: 5;
-    text-transform: uppercase;
+position: absolute;
+top: 8px;
+left: 8px;
+padding: 4px 8px;
+font-size: 10px;
+font-weight: bold;
+border-radius: 4px;
+z-index: 5;
+text-transform: uppercase;
 }
 
 /* Badge Colors */
 .bg-pending { background-color: #f39c12 !important; color: white; }
 .bg-available { background-color: #27ae60 !important; color: white; }
 .bg-rented { background-color: #e74c3c !important; color: white; }
-
-
-
-This is my css i did html update still
